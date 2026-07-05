@@ -9,3 +9,4 @@ jhossua - fix: corregir timeout en scraping de Megatronica
 jhossua - feat: agregar boton de descarga Excel en historial
 jhossua - refactor: limpiar codigo de CargaPage
 Alisson - fix: corregir formato de fecha en PDF
+Alisson - feat: agregar loading state en busqueda por imagen
