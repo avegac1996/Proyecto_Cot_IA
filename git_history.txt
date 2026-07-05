@@ -35,3 +35,4 @@ Gabriela - fix: corregir redirect despues de login
 Gabriela - feat: agregar skeleton loading en historial
 Gabriela - refactor: simplificar store de auth
 Gabriela - fix: corregir formato de moneda en PDF
+Gabriela - feat: agregar sombra en tarjetas de producto
