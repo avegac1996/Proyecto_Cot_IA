@@ -16,3 +16,4 @@ Alisson - refactor: extraer componente AgenteChat
 Alisson - fix: corregir margen aplicado en tiendas externas
 Alisson - feat: agregar tooltip en iconos de estado
 Alisson - docs: agregar README de configuracion
+Alisson - fix: corregir scroll en modal de cliente
