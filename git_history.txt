@@ -22,3 +22,4 @@ Pool - refactor: simplificar logica de carrito
 Pool - fix: resolver warning de React keys
 Pool - feat: agregar animacion en transicion de tabs
 Pool - docs: documentar endpoints de cotizacion
+Pool - fix: corregir manejo de errores en busqueda
