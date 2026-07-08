@@ -53,3 +53,4 @@ jorge - fix: corregir validacion de email en registro
 jorge - feat: agregar animacion de carga en botones
 jorge - docs: actualizar resumen de cambios
 jorge - fix: corregir posicion de footer en mobile
+jorge - feat: agregar atajo de teclado para buscar
