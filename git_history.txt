@@ -30,3 +30,4 @@ Pool - feat: agregar placeholder en input de voz
 Pool - docs: actualizar arquitectura del proyecto
 Gabriela - fix: corregir validacion de IVA en backend
 Gabriela - feat: agregar icono de tienda en resultados
+Gabriela - refactor: mover tipos a shared/types
