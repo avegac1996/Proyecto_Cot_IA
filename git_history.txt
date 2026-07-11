@@ -12,3 +12,4 @@ Alisson - fix: corregir formato de fecha en PDF
 Alisson - feat: agregar loading state en busqueda por imagen
 Alisson - fix: resolver error de autenticacion en refresh
 Alisson - feat: mejorar diseno de tabla de cotizaciones
+Alisson - refactor: extraer componente AgenteChat
