@@ -51,3 +51,4 @@ Dilan - feat: agregar modo oscuro en login
 jorge - refactor: optimizar bundle de frontend
 jorge - fix: corregir validacion de email en registro
 jorge - feat: agregar animacion de carga en botones
+jorge - docs: actualizar resumen de cambios
