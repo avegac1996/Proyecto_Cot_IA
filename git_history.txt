@@ -10,3 +10,4 @@ jhossua - feat: agregar boton de descarga Excel en historial
 jhossua - refactor: limpiar codigo de CargaPage
 Alisson - fix: corregir formato de fecha en PDF
 Alisson - feat: agregar loading state en busqueda por imagen
+Alisson - fix: resolver error de autenticacion en refresh
