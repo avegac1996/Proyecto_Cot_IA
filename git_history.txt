@@ -33,3 +33,4 @@ Gabriela - feat: agregar icono de tienda en resultados
 Gabriela - refactor: mover tipos a shared/types
 Gabriela - fix: corregir redirect despues de login
 Gabriela - feat: agregar skeleton loading en historial
+Gabriela - refactor: simplificar store de auth
