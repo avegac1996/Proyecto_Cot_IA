@@ -5,3 +5,4 @@ jhossua - refactor: optimizar renderizado de lista de resultados
 jhossua - fix: resolver bug en paginacion de historial
 jhossua - feat: agregar estilos responsive para mobile
 jhossua - docs: actualizar documentacion de API
+jhossua - fix: corregir timeout en scraping de Megatronica
