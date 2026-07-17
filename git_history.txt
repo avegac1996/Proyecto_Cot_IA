@@ -47,3 +47,4 @@ Dilan - fix: corregir error 500 al generar PDF
 Dilan - feat: agregar toast de notificaciones
 Dilan - docs: documentar configuracion de Docker
 Dilan - fix: corregir scroll horizontal en tabla
+Dilan - feat: agregar modo oscuro en login
