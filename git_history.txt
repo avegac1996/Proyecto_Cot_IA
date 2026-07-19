@@ -43,3 +43,4 @@ Dilan - refactor: extraer servicio de busqueda
 Dilan - fix: corregir estilo de header en mobile
 Dilan - feat: agregar favicon personalizado
 Dilan - refactor: limpiar imports no usados
+Dilan - fix: corregir error 500 al generar PDF
