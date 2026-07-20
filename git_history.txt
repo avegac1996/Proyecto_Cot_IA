@@ -31,3 +31,4 @@ Pool - docs: actualizar arquitectura del proyecto
 Gabriela - fix: corregir validacion de IVA en backend
 Gabriela - feat: agregar icono de tienda en resultados
 Gabriela - refactor: mover tipos a shared/types
+Gabriela - fix: corregir redirect despues de login
