@@ -6,3 +6,4 @@ jhossua - fix: corregir validacion de cantidad negativa
 jhossua - docs: actualizar guia de despliegue
 jhossua - feat: agregar filtro por estado en historial
 jhossua - fix: corregir scroll en tabla con muchos items
+jhossua - refactor: optimizar re-render de HistorialPage
