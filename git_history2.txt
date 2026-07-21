@@ -56,3 +56,4 @@ jorge - feat: agregar estadisticas basicas en header
 jorge - refactor: simplificar manejo de errores
 jorge - fix: corregir estilo de inputs en mobile
 jorge - feat: agregar soporte para teclado en paginacion
+jorge - docs: finalizar documentacion de historial
