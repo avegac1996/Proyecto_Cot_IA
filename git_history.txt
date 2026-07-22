@@ -26,3 +26,4 @@ Pool - fix: corregir manejo de errores en busqueda
 Pool - feat: agregar badge de cantidad en carrito
 Pool - refactor: optimizar queries de historial
 Pool - fix: corregir estilo de botones en dark mode
+Pool - feat: agregar placeholder en input de voz
