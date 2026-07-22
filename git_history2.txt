@@ -53,3 +53,4 @@ jorge - feat: agregar vista previa rapida de cotizacion
 jorge - docs: documentar variables de entorno
 jorge - fix: corregir bug al filtrar sin resultados
 jorge - feat: agregar estadisticas basicas en header
+jorge - refactor: simplificar manejo de errores
