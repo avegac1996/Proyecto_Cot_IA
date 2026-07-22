@@ -40,3 +40,4 @@ Gabriela - fix: corregir alineacion de iconos en tabla
 Gabriela - feat: agregar hover effect en filas
 Dilan - docs: agregar diagrama de base de datos
 Dilan - fix: corregir validacion de rango de fechas
+Dilan - feat: agregar badge de usuario en detalle
