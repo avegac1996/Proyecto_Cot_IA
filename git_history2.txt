@@ -55,3 +55,4 @@ jorge - fix: corregir bug al filtrar sin resultados
 jorge - feat: agregar estadisticas basicas en header
 jorge - refactor: simplificar manejo de errores
 jorge - fix: corregir estilo de inputs en mobile
+jorge - feat: agregar soporte para teclado en paginacion
