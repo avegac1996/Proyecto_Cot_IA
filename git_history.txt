@@ -14,3 +14,4 @@ Alisson - fix: resolver error de autenticacion en refresh
 Alisson - feat: mejorar diseno de tabla de cotizaciones
 Alisson - refactor: extraer componente AgenteChat
 Alisson - fix: corregir margen aplicado en tiendas externas
+Alisson - feat: agregar tooltip en iconos de estado
