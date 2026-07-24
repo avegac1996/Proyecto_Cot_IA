@@ -34,3 +34,4 @@ Gabriela - fix: corregir estilo de boton Limpiar
 Gabriela - feat: agregar exportacion de resultados filtrados
 Gabriela - docs: documentar estructura de carpetas
 Gabriela - fix: corregir bug al paginar con filtros activos
+Gabriela - feat: agregar atajo Ctrl+K para buscar
