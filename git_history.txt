@@ -42,3 +42,4 @@ Dilan - feat: agregar indicador de progreso en upload
 Dilan - refactor: extraer servicio de busqueda
 Dilan - fix: corregir estilo de header en mobile
 Dilan - feat: agregar favicon personalizado
+Dilan - refactor: limpiar imports no usados
