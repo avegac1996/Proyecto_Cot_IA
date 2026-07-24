@@ -17,3 +17,4 @@ Alisson - feat: agregar indicador visual de pagina actual
 Alisson - refactor: mover constantes a archivo separado
 Alisson - fix: corregir estilo de datepicker en dark mode
 Alisson - feat: agregar atajo Escape para cerrar modal
+Alisson - docs: agregar seccion de troubleshooting
