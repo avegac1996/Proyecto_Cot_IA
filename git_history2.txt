@@ -26,3 +26,4 @@ Pool - feat: agregar animacion de fade en paginacion
 Pool - docs: actualizar CHANGELOG
 Pool - fix: corregir bug al buscar con acentos
 Pool - feat: agregar skeleton loading en busqueda
+Pool - refactor: extraer componente FiltroFecha
