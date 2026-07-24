@@ -45,3 +45,4 @@ Dilan - feat: agregar favicon personalizado
 Dilan - refactor: limpiar imports no usados
 Dilan - fix: corregir error 500 al generar PDF
 Dilan - feat: agregar toast de notificaciones
+Dilan - docs: documentar configuracion de Docker
