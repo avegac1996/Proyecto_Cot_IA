@@ -14,3 +14,4 @@ Alisson - refactor: simplificar logica de paginacion
 Alisson - docs: documentar parametros de busqueda
 Alisson - fix: corregir bug al filtrar por fecha vacia
 Alisson - feat: agregar indicador visual de pagina actual
+Alisson - refactor: mover constantes a archivo separado
