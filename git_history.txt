@@ -3,3 +3,4 @@ jhossua - fix: corregir calculo de subtotal en carrito
 jhossua - feat: agregar validacion de campos en cliente modal
 jhossua - refactor: optimizar renderizado de lista de resultados
 jhossua - fix: resolver bug en paginacion de historial
+jhossua - feat: agregar estilos responsive para mobile
