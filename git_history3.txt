@@ -1,3 +1,4 @@
 Cristian - feat: agregar validacion de RUC en cliente modal
 Cristian - fix: corregir bug al exportar Excel con items vacios
 Cristian - refactor: simplificar logica de seleccion de proveedor
+Cristian - feat: agregar indicador de carga en boton de busqueda
