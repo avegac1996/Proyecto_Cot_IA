@@ -31,3 +31,4 @@ Pool - fix: corregir reset de pagina al cambiar filtro
 Gabriela - feat: agregar resumen de totales en historial
 Gabriela - refactor: optimizar query de conteo
 Gabriela - fix: corregir estilo de boton Limpiar
+Gabriela - feat: agregar exportacion de resultados filtrados
