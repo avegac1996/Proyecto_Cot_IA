@@ -19,3 +19,4 @@ Alisson - docs: agregar README de configuracion
 Alisson - fix: corregir scroll en modal de cliente
 Alisson - feat: agregar confirmacion antes de finalizar cotizacion
 Pool - refactor: simplificar logica de carrito
+Pool - fix: resolver warning de React keys
