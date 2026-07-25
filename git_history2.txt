@@ -10,3 +10,4 @@ jhossua - refactor: optimizar re-render de HistorialPage
 jhossua - feat: agregar tooltip en columna usuario
 Alisson - fix: corregir formato de fecha en Excel
 Alisson - feat: agregar confirmacion antes de eliminar
+Alisson - refactor: simplificar logica de paginacion
