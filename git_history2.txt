@@ -1,1 +1,2 @@
 jhossua - feat: agregar exportacion CSV en historial
+jhossua - fix: corregir ordenamiento por columna en tabla
