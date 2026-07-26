@@ -47,3 +47,4 @@ Dilan - feat: agregar agrupacion por dia en historial
 Dilan - docs: actualizar README con nuevas features
 Dilan - fix: corregir estilo de paginacion en mobile
 Dilan - feat: agregar shortcut para nueva cotizacion
+Dilan - refactor: optimizar memoizacion en tabla
