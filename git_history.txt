@@ -6,3 +6,4 @@ jhossua - fix: resolver bug en paginacion de historial
 jhossua - feat: agregar estilos responsive para mobile
 jhossua - docs: actualizar documentacion de API
 jhossua - fix: corregir timeout en scraping de Megatronica
+jhossua - feat: agregar boton de descarga Excel en historial
