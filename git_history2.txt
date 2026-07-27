@@ -42,3 +42,4 @@ Dilan - docs: agregar diagrama de base de datos
 Dilan - fix: corregir validacion de rango de fechas
 Dilan - feat: agregar badge de usuario en detalle
 Dilan - refactor: extraer utils de formato
+Dilan - fix: corregir bug al eliminar ultima cotizacion
