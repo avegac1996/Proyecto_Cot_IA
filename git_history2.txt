@@ -8,3 +8,4 @@ jhossua - feat: agregar filtro por estado en historial
 jhossua - fix: corregir scroll en tabla con muchos items
 jhossua - refactor: optimizar re-render de HistorialPage
 jhossua - feat: agregar tooltip en columna usuario
+Alisson - fix: corregir formato de fecha en Excel
