@@ -4,3 +4,4 @@ Cristian - refactor: simplificar logica de seleccion de proveedor
 Cristian - feat: agregar indicador de carga en boton de busqueda
 Cristian - fix: corregir estilo de tabla en impresion
 Cristian - docs: actualizar guia de instalacion local
+Cristian - feat: agregar confirmacion antes de cerrar sesion
