@@ -55,3 +55,4 @@ jorge - docs: actualizar resumen de cambios
 jorge - fix: corregir posicion de footer en mobile
 jorge - feat: agregar atajo de teclado para buscar
 jorge - refactor: simplificar estilos CSS
+jorge - fix: corregir z-index de modal
