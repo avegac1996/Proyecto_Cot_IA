@@ -7,3 +7,4 @@ Cristian - docs: actualizar guia de instalacion local
 Cristian - feat: agregar confirmacion antes de cerrar sesion
 Cristian - fix: corregir calculo de IVA en cotizaciones editadas
 Cristian - refactor: extraer componente TablaCotizaciones
+Cristian - feat: agregar soporte para modo offline en historial
