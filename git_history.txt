@@ -41,3 +41,4 @@ Gabriela - fix: corregir bug al editar cotizacion existente
 Dilan - feat: agregar indicador de progreso en upload
 Dilan - refactor: extraer servicio de busqueda
 Dilan - fix: corregir estilo de header en mobile
+Dilan - feat: agregar favicon personalizado
