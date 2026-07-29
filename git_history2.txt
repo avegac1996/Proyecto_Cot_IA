@@ -37,3 +37,4 @@ Gabriela - fix: corregir bug al paginar con filtros activos
 Gabriela - feat: agregar atajo Ctrl+K para buscar
 Gabriela - refactor: simplificar estilos inline
 Gabriela - fix: corregir alineacion de iconos en tabla
+Gabriela - feat: agregar hover effect en filas
