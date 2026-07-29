@@ -3,3 +3,4 @@ Cristian - fix: corregir bug al exportar Excel con items vacios
 Cristian - refactor: simplificar logica de seleccion de proveedor
 Cristian - feat: agregar indicador de carga en boton de busqueda
 Cristian - fix: corregir estilo de tabla en impresion
+Cristian - docs: actualizar guia de instalacion local
