@@ -25,3 +25,4 @@ Pool - fix: corregir z-index de datepicker
 Pool - feat: agregar animacion de fade en paginacion
 Pool - docs: actualizar CHANGELOG
 Pool - fix: corregir bug al buscar con acentos
+Pool - feat: agregar skeleton loading en busqueda
