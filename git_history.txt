@@ -1,2 +1,3 @@
 jhossua - feat: mejorar UI de tarjeta de productos
 jhossua - fix: corregir calculo de subtotal en carrito
+jhossua - feat: agregar validacion de campos en cliente modal
