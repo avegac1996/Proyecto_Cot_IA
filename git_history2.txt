@@ -20,3 +20,4 @@ Alisson - feat: agregar atajo Escape para cerrar modal
 Alisson - docs: agregar seccion de troubleshooting
 Pool - fix: corregir overflow en botones de paginacion
 Pool - feat: agregar contador de resultados filtrados
+Pool - refactor: limpiar console.log en produccion
