@@ -24,3 +24,4 @@ Pool - feat: agregar animacion en transicion de tabs
 Pool - docs: documentar endpoints de cotizacion
 Pool - fix: corregir manejo de errores en busqueda
 Pool - feat: agregar badge de cantidad en carrito
+Pool - refactor: optimizar queries de historial
