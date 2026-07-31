@@ -51,3 +51,4 @@ Dilan - refactor: optimizar memoizacion en tabla
 jorge - fix: corregir formato de moneda en Excel
 jorge - feat: agregar vista previa rapida de cotizacion
 jorge - docs: documentar variables de entorno
+jorge - fix: corregir bug al filtrar sin resultados
