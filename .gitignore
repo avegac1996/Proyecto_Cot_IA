@@ -1,0 +1,33 @@
+# Dependencias
+BACKEND/__pycache__/
+BACKEND/app/__pycache__/
+BACKEND/**/*.__pycache__/
+FRONTEND/node_modules/
+FRONTEND/dist/
+
+# Env
+BACKEND/.env
+FRONTEND/.env
+
+# Docker volumes
+postgres_data/
+redis_data/
+uploads_data/
+pgadmin_data/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Python
+*.pyc
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/

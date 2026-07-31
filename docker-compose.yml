@@ -1,0 +1,82 @@
+version: '3.8'
+
+services:
+  # ─── Base de Datos ───
+  postgres:
+    image: postgres:16-alpine
+    container_name: cotia_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-cotia}
+      POSTGRES_USER: ${POSTGRES_USER:-cotia_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cotia_pass}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-cotia_user}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── pgAdmin (Admin de PostgreSQL) ───
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: cotia_pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@cotia.com}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - "5050:80"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+
+  # ─── Backend (FastAPI) ───
+  backend:
+    build:
+      context: ./BACKEND
+      dockerfile: Dockerfile
+    container_name: cotia_backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./BACKEND/.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./BACKEND/app:/app/app
+    command: >
+      uvicorn app.main:app
+      --host 0.0.0.0
+      --port 8000
+      --reload
+
+  # ─── Frontend (Vite dev server) ───
+  frontend:
+    build:
+      context: ./FRONTEND
+      dockerfile: Dockerfile
+    container_name: cotia_frontend
+    restart: unless-stopped
+    ports:
+      - "5173:5173"
+    env_file:
+      - ./FRONTEND/.env
+    depends_on:
+      - backend
+    volumes:
+      - ./FRONTEND/src:/app/src
+      - ./FRONTEND/public:/app/public
+    command: npm run dev -- --host 0.0.0.0
+
+volumes:
+  postgres_data:
+  pgadmin_data:

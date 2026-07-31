@@ -1,0 +1,132 @@
+Banco de preguntas inteligentes para aclarar información del cliente
+Información general
+1.
+
+¿Podría confirmar si la lista enviada está completa o falta algún componente por agregar?
+
+2.
+
+¿Todos los productos solicitados pertenecen a una misma cotización?
+
+3.
+
+¿Necesita todos los componentes o existe alguno opcional?
+
+4.
+
+¿Tiene alguna marca de preferencia para los productos solicitados?
+
+5.
+
+¿Existe algún presupuesto máximo para esta cotización?
+
+Cantidades
+6.
+
+¿Podría confirmar la cantidad exacta de unidades que necesita para este producto?
+
+7.
+
+En su lista no se especifica la cantidad de este componente. ¿Cuántas unidades necesita?
+
+8.
+
+La cantidad indicada parece inconsistente. ¿Podría confirmar el número correcto de unidades?
+
+9.
+
+¿Desea cotizar unidades individuales o paquetes completos?
+
+Resistencias
+10.
+
+¿Cuál es el valor de la resistencia que necesita? (Ejemplo: 220 Ω, 1 kΩ, 10 kΩ)
+
+11.
+
+¿Qué potencia requiere para la resistencia? (1/8 W, 1/4 W, 1/2 W, 1 W, etc.)
+
+12.
+
+¿Necesita resistencias con alguna tolerancia específica? (1 %, 5 %, etc.)
+
+Capacitores
+13.
+
+¿Podría indicar la capacitancia del capacitor? (Ejemplo: 100 µF, 10 nF)
+
+14.
+
+¿Qué voltaje debe soportar el capacitor?
+
+15.
+
+¿Necesita un capacitor cerámico, electrolítico u otro tipo?
+
+LED
+16.
+
+¿Qué color o colores de LED necesita?
+
+17.
+
+¿Qué cantidad requiere de cada color?
+
+18.
+
+¿Qué tamaño de LED necesita? (3 mm, 5 mm, SMD, etc.)
+
+Transistores
+19.
+
+¿Qué modelo de transistor necesita? (Ejemplo: 2N3904, BC547, TIP41)
+
+20.
+
+¿El transistor solicitado es NPN, PNP, MOSFET u otro tipo?
+
+Diodos
+21.
+
+¿Qué modelo de diodo necesita? (Ejemplo: 1N4007, 1N4148)
+
+22.
+
+¿Necesita un diodo rectificador, Zener, Schottky u otro tipo?
+
+Circuitos integrados
+23.
+
+¿Cuál es el número o referencia del circuito integrado que requiere?
+
+24.
+
+¿Necesita el circuito integrado en encapsulado DIP, SMD u otro formato?
+
+Sensores y módulos
+25.
+
+¿Qué modelo o referencia del sensor necesita?
+
+26.
+
+¿Podría indicar la aplicación o función del sensor solicitado?
+
+Fuentes de alimentación
+27.
+
+¿Qué voltaje y corriente necesita para la fuente de alimentación?
+
+Conectores y cables
+28.
+
+¿Qué longitud o tipo de cable necesita?
+
+29.
+
+¿Qué tipo de conector requiere? (USB, Jack, Bornera, Dupont, RJ45, etc.)
+
+Confirmación final
+30.
+
+¿Desea realizar alguna modificación adicional antes de generar la cotización?
