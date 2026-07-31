@@ -49,3 +49,4 @@ Dilan - docs: documentar configuracion de Docker
 Dilan - fix: corregir scroll horizontal en tabla
 Dilan - feat: agregar modo oscuro en login
 jorge - refactor: optimizar bundle de frontend
+jorge - fix: corregir validacion de email en registro
