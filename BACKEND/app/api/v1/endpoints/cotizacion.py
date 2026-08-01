@@ -1,6 +1,8 @@
+import io
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.responses import StreamingResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -14,6 +16,7 @@ from app.schemas.cotizacion import (
     CotizacionListResponse,
     CotizacionResponse,
 )
+from app.services.cotizacion.exporter import generate_excel, generate_pdf
 from app.services.cotizacion.generator import generar_cotizacion
 from app.services.preguntas.selector import seleccionar_preguntas
 
@@ -124,4 +127,49 @@ async def listar_cotizaciones(
             )
             for c in cotizaciones
         ],
+    )
+
+
+async def _get_cotizacion_by_id(cotizacion_id: int, user: Usuario, db: AsyncSession) -> Cotizacion:
+    result = await db.execute(select(Cotizacion).where(Cotizacion.id == cotizacion_id))
+    cotizacion = result.scalar_one_or_none()
+    if cotizacion is None or (cotizacion.usuario_id != user.id and user.rol != "admin"):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"code": "COTIZACION_NOT_FOUND", "message": "Cotización no encontrada"},
+        )
+    return cotizacion
+
+
+@router.get("/cotizacion/{cotizacion_id}/pdf")
+async def descargar_pdf(
+    cotizacion_id: int,
+    db: AsyncSession = Depends(get_db),
+    user: Usuario = Depends(get_current_user),
+):
+    cotizacion = await _get_cotizacion_by_id(cotizacion_id, user, db)
+    pdf_bytes = generate_pdf(cotizacion)
+    return StreamingResponse(
+        io.BytesIO(pdf_bytes),
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="cotizacion_{cotizacion_id}.pdf"'
+        },
+    )
+
+
+@router.get("/cotizacion/{cotizacion_id}/excel")
+async def descargar_excel(
+    cotizacion_id: int,
+    db: AsyncSession = Depends(get_db),
+    user: Usuario = Depends(get_current_user),
+):
+    cotizacion = await _get_cotizacion_by_id(cotizacion_id, user, db)
+    excel_bytes = generate_excel(cotizacion)
+    return StreamingResponse(
+        io.BytesIO(excel_bytes),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={
+            "Content-Disposition": f'attachment; filename="cotizacion_{cotizacion_id}.xlsx"'
+        },
     )

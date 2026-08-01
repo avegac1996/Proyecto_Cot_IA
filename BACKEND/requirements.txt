@@ -11,3 +11,8 @@ httpx==0.27.0
 beautifulsoup4==4.12.3
 greenlet==3.1.1
 playwright==1.49.0
+openpyxl==3.1.5
+reportlab==4.2.5
+Pillow==11.1.0
+pytesseract==0.3.13
+openai-whisper==20240930

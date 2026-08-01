@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { AlertCircle, FileText, Loader2 } from 'lucide-react'
+import { AlertCircle, Download, FileText, FileSpreadsheet, Loader2 } from 'lucide-react'
 import { useCotizacionStore } from '@/shared/store/cotizacionStore'
 import CotizacionTable from './components/CotizacionTable'
 import {
+  descargarExcel,
+  descargarPDF,
   extractCotizacionError,
   generarCotizacion,
   getCotizacion,
@@ -112,7 +114,7 @@ export default function CotizacionPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
           <div
             className="w-10 h-10 rounded-lg flex items-center justify-center"
@@ -129,12 +131,34 @@ export default function CotizacionPage() {
             </p>
           </div>
         </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => descargarPDF(cotizacion.cotizacion_id)}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm text-white transition-opacity hover:opacity-90"
+            style={{ backgroundColor: 'var(--color-primary)' }}
+          >
+            <Download className="w-4 h-4" />
+            PDF
+          </button>
+          <button
+            onClick={() => descargarExcel(cotizacion.cotizacion_id)}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-colors"
+            style={{
+              backgroundColor: 'transparent',
+              border: '1px solid var(--color-border)',
+              color: 'var(--color-text)',
+            }}
+          >
+            <FileSpreadsheet className="w-4 h-4" />
+            Excel
+          </button>
+        </div>
       </div>
 
       <CotizacionTable cotizacion={cotizacion} />
 
       <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
-        Los ítems "Sin datos" aún no tienen precios en cache; el scraping en vivo a las tiendas se habilitará próximamente.
+        Los ítems "Sin datos" no tienen precios disponibles en las tiendas consultadas.
       </p>
     </div>
   )

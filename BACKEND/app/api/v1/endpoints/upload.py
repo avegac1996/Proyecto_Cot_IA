@@ -7,6 +7,8 @@ from app.core.database import get_db
 from app.models.sesion import Sesion
 from app.models.usuario import Usuario
 from app.schemas.upload import UploadResponse
+from app.services.ingesta.audio import transcribir_audio
+from app.services.ingesta.imagen import extraer_texto_imagen
 from app.services.ingesta.texto import parsear_texto
 
 router = APIRouter(prefix="/upload", tags=["upload"])
@@ -54,19 +56,24 @@ async def upload_file(
             },
         )
 
-    if tipo != "texto":
-        # Audio (Whisper) e imagen (OCR) requieren APIs externas; pendiente de keys
-        raise HTTPException(
-            status_code=status.HTTP_501_NOT_IMPLEMENTED,
-            detail={
-                "code": "PROCESSING_ERROR",
-                "message": f"La ingesta de {tipo} requiere API externa (pendiente de configuración). Por ahora use archivos de texto (.txt, .csv)",
-            },
-        )
-
     try:
-        texto = contenido_bytes.decode("utf-8", errors="ignore")
-        componentes = parsear_texto(texto)
+        if tipo == "texto":
+            texto = contenido_bytes.decode("utf-8", errors="ignore")
+            componentes = parsear_texto(texto)
+        elif tipo == "audio":
+            componentes = transcribir_audio(contenido_bytes, extension)
+        elif tipo == "imagen":
+            componentes = extraer_texto_imagen(contenido_bytes)
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+                detail={"code": "INVALID_FILE_TYPE", "message": f"Tipo '{tipo}' no soportado"},
+            )
+    except RuntimeError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={"code": "PROCESSING_UNAVAILABLE", "message": str(exc)},
+        )
     except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

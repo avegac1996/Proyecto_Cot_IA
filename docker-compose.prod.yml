@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  # ─── Base de Datos ───
+  postgres:
+    image: postgres:16-alpine
+    container_name: cotia_postgres_prod
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-cotia}
+      POSTGRES_USER: ${POSTGRES_USER:-cotia_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cotia_pass}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-cotia_user}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── Backend (FastAPI) ───
+  backend:
+    build:
+      context: ./BACKEND
+      dockerfile: Dockerfile
+    container_name: cotia_backend_prod
+    restart: unless-stopped
+    env_file:
+      - ./BACKEND/.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: >
+      sh -c "alembic upgrade head &&
+             uvicorn app.main:app
+             --host 0.0.0.0
+             --port 8000
+             --workers 4"
+    expose:
+      - "8000"
+
+  # ─── Frontend (build estático servido por Nginx) ───
+  frontend:
+    build:
+      context: ./FRONTEND
+      dockerfile: Dockerfile.prod
+    container_name: cotia_frontend_prod
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx/certs:/etc/nginx/certs:ro
+
+volumes:
+  postgres_data:

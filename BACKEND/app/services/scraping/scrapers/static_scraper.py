@@ -1,4 +1,11 @@
-"""Scraper estático usando httpx + BeautifulSoup4."""
+"""Scraper estático usando httpx + BeautifulSoup4.
+
+Soporta dos modos:
+1. Precio en resultados de búsqueda (un solo request)
+2. Precio en página de producto (dos requests: búsqueda -> producto)
+El modo se determina por la presencia de 'price' en selectores.
+Si no hay 'price' en search, usa 'product_page_price' en la página del producto.
+"""
 
 import logging
 
@@ -9,7 +16,6 @@ from app.services.scraping.scrapers.base import BaseScraper
 
 logger = logging.getLogger(__name__)
 
-# Headers para simular un navegador real
 HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -42,11 +48,10 @@ class StaticScraper(BaseScraper):
 
         soup = BeautifulSoup(response.text, "html.parser")
 
-        # Buscar tarjetas de producto usando el selector configurado
         card_selector = self.selectores.get("product_card", "")
         price_selector = self.selectores.get("price", "")
-        availability_selector = self.selectores.get("availability", "")
         link_selector = self.selectores.get("product_url", "")
+        availability_selector = self.selectores.get("availability", "")
 
         if not card_selector:
             logger.warning("No hay selector 'product_card' para %s", self.nombre_tienda)
@@ -57,35 +62,89 @@ class StaticScraper(BaseScraper):
             logger.info("No se encontraron productos en %s para query '%s'", self.nombre_tienda, query)
             return result
 
-        # Tomar el primer resultado que tenga precio
+        # Determinar disponibilidad desde clases del card (WooCommerce)
+        stock_in_classes = self.selectores.get("stock_in_classes", False)
+
         for card in cards:
-            price_el = card.select_one(price_selector) if price_selector else None
-            avail_el = card.select_one(availability_selector) if availability_selector else None
-            link_el = card.select_one(link_selector) if link_selector else None
-
-            precio = self._parse_price(price_el.get_text(strip=True) if price_el else None)
-            if precio is None:
-                continue
-
-            disponible = True
-            if avail_el:
-                disponible = self._parse_availability(avail_el.get_text(strip=True))
-
+            # Obtener URL del producto
             url_producto = None
-            if link_el and link_el.get("href"):
-                href = link_el["href"]
-                if href.startswith("/"):
-                    url_producto = f"{self.url_base}{href}"
-                elif not href.startswith("http"):
-                    url_producto = f"{self.url_base}/{href}"
-                else:
-                    url_producto = href
+            if link_selector:
+                link_el = card.select_one(link_selector)
+                if link_el and link_el.get("href"):
+                    href = link_el["href"]
+                    if href.startswith("/"):
+                        url_producto = f"{self.url_base}{href}"
+                    elif not href.startswith("http"):
+                        url_producto = f"{self.url_base}/{href}"
+                    else:
+                        url_producto = href
 
-            result = {
-                "precio": precio,
-                "disponible": disponible,
-                "url": url_producto,
-            }
-            break
+            # Disponibilidad
+            disponible = True
+            if stock_in_classes and hasattr(card, "get"):
+                classes = card.get("class", []) or []
+                disponible = "instock" in classes and "outofstock" not in classes
+            elif availability_selector:
+                avail_el = card.select_one(availability_selector)
+                if avail_el:
+                    disponible = self._parse_availability(avail_el.get_text(strip=True))
+
+            # Precio en búsqueda (si existe el selector)
+            if price_selector:
+                price_el = card.select_one(price_selector)
+                if price_el:
+                    precio = self._parse_price(price_el.get_text(strip=True))
+                    if precio is not None:
+                        result = {
+                            "precio": precio,
+                            "disponible": disponible,
+                            "url": url_producto,
+                        }
+                        return result
+
+            # Si no hay precio en búsqueda, visitar página de producto
+            if url_producto:
+                page_price_selector = self.selectores.get("product_page_price", "p.price")
+                page_avail_selector = self.selectores.get("product_page_availability", ".stock")
+                precio, page_disponible = await self._scrape_product_page(
+                    url_producto, page_price_selector, page_avail_selector
+                )
+                if precio is not None:
+                    result = {
+                        "precio": precio,
+                        "disponible": page_disponible if page_disponible is not None else disponible,
+                        "url": url_producto,
+                    }
+                    return result
 
         return result
+
+    async def _scrape_product_page(
+        self, url: str, price_selector: str, avail_selector: str
+    ) -> tuple[float | None, bool | None]:
+        """Visita la página de un producto y extrae precio y disponibilidad."""
+        try:
+            async with httpx.AsyncClient(
+                headers=HEADERS,
+                timeout=10.0,
+                follow_redirects=True,
+            ) as client:
+                response = await client.get(url)
+                response.raise_for_status()
+        except httpx.HTTPError as exc:
+            logger.warning("Error HTTP en página de producto %s: %s", url, exc)
+            return None, None
+
+        soup = BeautifulSoup(response.text, "html.parser")
+
+        precio = None
+        price_el = soup.select_one(price_selector)
+        if price_el:
+            precio = self._parse_price(price_el.get_text(strip=True))
+
+        disponible = None
+        avail_el = soup.select_one(avail_selector)
+        if avail_el:
+            disponible = self._parse_availability(avail_el.get_text(strip=True))
+
+        return precio, disponible

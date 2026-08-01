@@ -11,6 +11,38 @@ export async function getCotizacion(sessionId: string): Promise<Cotizacion> {
   return data
 }
 
+export async function descargarPDF(cotizacionId: number): Promise<void> {
+  const response = await api.get(`/cotizacion/${cotizacionId}/pdf`, {
+    responseType: 'blob',
+  })
+  const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }))
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `cotizacion_${cotizacionId}.pdf`
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  window.URL.revokeObjectURL(url)
+}
+
+export async function descargarExcel(cotizacionId: number): Promise<void> {
+  const response = await api.get(`/cotizacion/${cotizacionId}/excel`, {
+    responseType: 'blob',
+  })
+  const url = window.URL.createObjectURL(
+    new Blob([response.data], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    })
+  )
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `cotizacion_${cotizacionId}.xlsx`
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  window.URL.revokeObjectURL(url)
+}
+
 export function extractCotizacionError(error: unknown): string {
   const err = error as { response?: { data?: { detail?: { message?: string; code?: string } } } }
   return err.response?.data?.detail?.message || 'Error al generar la cotización'
