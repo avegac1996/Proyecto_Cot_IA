@@ -181,6 +181,17 @@ async def obtener_cotizacion(
     return _to_response(cotizacion)
 
 
+@router.get("/cotizacion/by-id/{cotizacion_id}", response_model=CotizacionResponse)
+async def obtener_cotizacion_by_id(
+    cotizacion_id: int,
+    db: AsyncSession = Depends(get_db),
+    user: Usuario = Depends(get_current_user),
+):
+    """Obtiene una cotización por su ID numérico (usado por el historial)."""
+    cotizacion = await _get_cotizacion_by_id(cotizacion_id, user, db)
+    return _to_response(cotizacion)
+
+
 @router.get("/cotizaciones", response_model=CotizacionListResponse)
 async def listar_cotizaciones(
     page: int = Query(default=1, ge=1),

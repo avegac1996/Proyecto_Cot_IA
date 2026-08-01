@@ -16,7 +16,7 @@ export async function getHistorial(page = 1, limit = 20): Promise<HistorialRespo
 }
 
 export async function getCotizacionById(cotizacionId: number): Promise<Cotizacion> {
-  const { data } = await api.get<Cotizacion>(`/cotizacion/${cotizacionId}`)
+  const { data } = await api.get<Cotizacion>(`/cotizacion/by-id/${cotizacionId}`)
   return data
 }
 
