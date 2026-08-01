@@ -24,7 +24,7 @@ class DynamicScraper(BaseScraper):
             async with async_playwright() as p:
                 browser = await p.chromium.launch(headless=True)
                 page = await browser.new_page()
-                await page.goto(url_busqueda, wait_until="networkidle", timeout=30000)
+                await page.goto(url_busqueda, wait_until="networkidle", timeout=15000)
 
                 # Esperar a que carguen las tarjetas de producto
                 card_selector = self.selectores.get("product_card", "")

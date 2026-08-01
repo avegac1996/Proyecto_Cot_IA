@@ -31,7 +31,7 @@ class StaticScraper(BaseScraper):
         try:
             async with httpx.AsyncClient(
                 headers=HEADERS,
-                timeout=30.0,
+                timeout=10.0,
                 follow_redirects=True,
             ) as client:
                 response = await client.get(url_busqueda)
