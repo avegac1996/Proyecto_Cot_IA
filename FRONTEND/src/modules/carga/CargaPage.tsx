@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { AlertCircle, FileUp, Loader2 } from 'lucide-react'
+import { AlertCircle, FileUp, Loader2, Sparkles, Info } from 'lucide-react'
 import { useCotizacionStore } from '@/shared/store/cotizacionStore'
 import DropZone from './components/DropZone'
 import FilePreview from './components/FilePreview'
@@ -49,10 +49,10 @@ export default function CargaPage() {
         </div>
         <div>
           <h2 className="text-xl font-bold" style={{ color: 'var(--color-text)' }}>
-            Carga de Archivos
+            Carga de Componentes
           </h2>
           <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
-            Sube tu lista de componentes en texto, audio o imagen
+            Sube tu lista en texto, audio o imagen
           </p>
         </div>
       </div>
@@ -74,7 +74,7 @@ export default function CargaPage() {
         onChange={(e) => setTexto(e.target.value)}
         disabled={isLoading}
         rows={5}
-        placeholder={'5 resistencias de 220 ohm\n10 leds rojos 5mm\n1 arduino uno'}
+        placeholder={'5 resistencias\n10 leds\n1 arduino\n1 sensor de temperatura\n1 motor'}
         className="w-full px-3 py-2.5 rounded-lg border outline-none text-sm resize-y"
         style={{
           borderColor: 'var(--color-border)',
@@ -122,6 +122,58 @@ export default function CargaPage() {
         )}
       </button>
 
+      {/* Info de auto-completado */}
+      <div
+        className="rounded-xl border p-4 space-y-3"
+        style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}
+      >
+        <div className="flex items-center gap-2">
+          <Sparkles className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />
+          <p className="text-xs font-bold" style={{ color: 'var(--color-text)' }}>
+            Auto-completado inteligente
+          </p>
+        </div>
+        <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
+          El sistema completa automáticamente los valores más comunes basándose en las recomendaciones de AV Electronics:
+        </p>
+        <div className="grid grid-cols-2 gap-2 text-xs">
+          <div className="flex items-center gap-1.5" style={{ color: 'var(--color-text-muted)' }}>
+            <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: 'var(--color-primary)' }} />
+            Resistencias → 220Ω 1/4W
+          </div>
+          <div className="flex items-center gap-1.5" style={{ color: 'var(--color-text-muted)' }}>
+            <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: 'var(--color-primary)' }} />
+            LEDs → 5mm rojo
+          </div>
+          <div className="flex items-center gap-1.5" style={{ color: 'var(--color-text-muted)' }}>
+            <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: 'var(--color-primary)' }} />
+            Arduino → UNO R3
+          </div>
+          <div className="flex items-center gap-1.5" style={{ color: 'var(--color-text-muted)' }}>
+            <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: 'var(--color-primary)' }} />
+            Fuente → 9V DC jack+
+          </div>
+          <div className="flex items-center gap-1.5" style={{ color: 'var(--color-text-muted)' }}>
+            <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: 'var(--color-primary)' }} />
+            Cables → Macho-Macho
+          </div>
+          <div className="flex items-center gap-1.5" style={{ color: 'var(--color-text-muted)' }}>
+            <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: 'var(--color-primary)' }} />
+            Protoboard → 830 puntos
+          </div>
+        </div>
+        <div
+          className="flex items-start gap-2 pt-2 border-t text-xs"
+          style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-muted)' }}
+        >
+          <Info className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+          <span>
+            Solo se preguntará sobre sensores, motores o componentes no reconocidos (máx. 2 preguntas).
+            Los items sugeridos (ej: driver para motor) se agregan automáticamente a la cotización.
+          </span>
+        </div>
+      </div>
+
       <div
         className="rounded-xl border p-4 text-xs"
         style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)', color: 'var(--color-text-muted)' }}
@@ -130,6 +182,8 @@ export default function CargaPage() {
         <p>5 resistencias de 220 ohm</p>
         <p>10 leds rojos 5mm</p>
         <p>1 arduino uno</p>
+        <p>1 sensor de temperatura</p>
+        <p>1 motor</p>
       </div>
     </div>
   )

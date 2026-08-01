@@ -1,6 +1,7 @@
 import re
 
 from app.services.matching.normalizer import (
+    aplicar_defaults,
     detectar_ambiguedades,
     detectar_tipo,
     normalizar_unidad,
@@ -44,7 +45,7 @@ def parsear_linea(linea: str) -> dict:
     tipo = detectar_tipo(texto)
     ambiguedades = detectar_ambiguedades(tipo, texto, valor)
 
-    return {
+    comp = {
         "texto_original": texto_original,
         "tipo": tipo,
         "valor": valor,
@@ -53,6 +54,11 @@ def parsear_linea(linea: str) -> dict:
         "ambiguo": len(ambiguedades) > 0,
         "ambiguedades": ambiguedades,
     }
+
+    # Aplicar defaults automáticos (ej: resistencia sin valor → 220Ω)
+    comp = aplicar_defaults(tipo, texto, comp)
+
+    return comp
 
 
 def parsear_texto(contenido: str) -> list[dict]:

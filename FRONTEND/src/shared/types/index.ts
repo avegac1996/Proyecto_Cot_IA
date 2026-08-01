@@ -21,6 +21,10 @@ export interface Componente {
   cantidad: number
   ambiguo: boolean
   ambiguedades: string[]
+  auto_completado?: boolean
+  color?: string
+  tamano?: string
+  tipo_o_modelo?: string
 }
 
 export interface UploadResponse {

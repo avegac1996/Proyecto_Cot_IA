@@ -11,6 +11,16 @@ from app.services.scraping.engine import buscar_precios
 
 TIENDA_PROPIA = settings.TIENDA_PROPIA
 
+# Reglas de auto-sugerencia basadas en preguntas frecuentes de AV Electronics
+REGLAS_SUGERENCIA = {
+    "motor": {
+        "tipo_detectar": "motor",
+        "componente_sugerir": "driver",
+        "texto_sugerir": "1 driver L298N",
+        "razon": "Los motores DC y paso a paso requieren un driver para no quemar el microcontrolador",
+    },
+}
+
 
 def _nombre_producto(comp: dict) -> str:
     partes = [comp.get("tipo", "desconocido").capitalize()]
@@ -100,6 +110,31 @@ def _item_sin_datos(producto: Producto | None, nombre: str, cantidad: int) -> Co
         seleccionado=True,
         opciones_proveedores=[],
     )
+
+
+async def _generar_sugerencias(
+    db: AsyncSession, componentes: list[dict]
+) -> list[dict]:
+    """Detecta componentes que requieren acompañantes y genera sugerencias.
+
+    Basado en preguntas frecuentes de AV Electronics:
+    - Motor DC/stepper → sugerir driver L298N
+    - Sensor 3.3V + Arduino 5V → sugerir Logic Level Converter
+    """
+    sugerencias = []
+    tipos_presentes = {comp.get("tipo") for comp in componentes}
+
+    for regla in REGLAS_SUGERENCIA.values():
+        tipo_detectar = regla["tipo_detectar"]
+        tipo_sugerir = regla["componente_sugerir"]
+        if tipo_detectar in tipos_presentes and tipo_sugerir not in tipos_presentes:
+            sugerencias.append({
+                "texto": regla["texto_sugerir"],
+                "razon": regla["razon"],
+                "tipo": tipo_sugerir,
+            })
+
+    return sugerencias
 
 
 async def generar_cotizacion(
@@ -195,6 +230,78 @@ async def generar_cotizacion(
             item = _item_sin_datos(producto, nombre, cantidad)
 
         cotizacion.items.append(item)
+
+    # Auto-sugerencias (ej: driver para motor)
+    sugerencias = await _generar_sugerencias(db, sesion.componentes_json)
+    for sug in sugerencias:
+        from app.services.ingesta.texto import parsear_linea
+        sug_comp = parsear_linea(sug["texto"])
+        sug_comp["_es_sugerencia"] = True
+        sug_comp["_razon_sugerencia"] = sug["razon"]
+        sug_producto = await _buscar_producto(db, sug_comp)
+        sug_nombre = f"[Sugerido] {_nombre_producto(sug_comp)}"
+        sug_cantidad = int(sug_comp.get("cantidad", 1))
+        sug_proveedores = []
+        if sug_producto is not None:
+            sug_proveedores = await buscar_precios(db, sug_producto)
+
+        sug_propio = None
+        sug_otros = []
+        for prov in sug_proveedores:
+            if prov["disponible"] and prov["precio_unitario"] is not None:
+                if prov["tienda"] == TIENDA_PROPIA:
+                    sug_propio = prov
+                else:
+                    sug_otros.append(prov)
+
+        if sug_propio:
+            precio_unit = Decimal(str(sug_propio["precio_unitario"])).quantize(Decimal("0.01"))
+            subtotal = (precio_unit * sug_cantidad).quantize(Decimal("0.01"))
+            sug_item = CotizacionItem(
+                producto_id=sug_producto.id if sug_producto else None,
+                producto_nombre=sug_nombre,
+                cantidad=sug_cantidad,
+                precio_unitario=precio_unit,
+                proveedor=TIENDA_PROPIA,
+                margen_aplicado=Decimal(0),
+                subtotal=subtotal,
+                disponible=True,
+                es_propio=True,
+                seleccionado=False,
+                opciones_proveedores=[],
+            )
+            total += subtotal
+        elif sug_otros:
+            opciones = []
+            for prov in sug_otros:
+                op = _construir_opcion(prov, margen, es_propio=False)
+                if op:
+                    opciones.append(op)
+            if opciones:
+                opciones.sort(key=lambda o: o["precio_con_margen"])
+                mejor = opciones[0]
+                precio_unit = Decimal(str(mejor["precio_con_margen"])).quantize(Decimal("0.01"))
+                subtotal = (precio_unit * sug_cantidad).quantize(Decimal("0.01"))
+                sug_item = CotizacionItem(
+                    producto_id=sug_producto.id if sug_producto else None,
+                    producto_nombre=sug_nombre,
+                    cantidad=sug_cantidad,
+                    precio_unitario=precio_unit,
+                    proveedor=mejor["tienda"],
+                    margen_aplicado=Decimal(str(settings.MARGEN_COMPETENCIA)),
+                    subtotal=subtotal,
+                    disponible=True,
+                    es_propio=False,
+                    seleccionado=False,
+                    opciones_proveedores=opciones,
+                )
+                total += subtotal
+            else:
+                sug_item = _item_sin_datos(sug_producto, sug_nombre, sug_cantidad)
+        else:
+            sug_item = _item_sin_datos(sug_producto, sug_nombre, sug_cantidad)
+
+        cotizacion.items.append(sug_item)
 
     cotizacion.total = total
     sesion.estado = "cotizada"

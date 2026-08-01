@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     MARGEN_COMPETENCIA: float = 5.0
     TIENDA_PROPIA: str = "AV Electronics"
     MAX_FILE_SIZE_MB: int = 25
-    MAX_PREGUNTAS_SESION: int = 5
+    MAX_PREGUNTAS_SESION: int = 2
 
     @property
     def cors_origins_list(self) -> list[str]:

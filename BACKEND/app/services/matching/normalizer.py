@@ -12,29 +12,57 @@ TIPOS_PALABRAS: dict[str, list[str]] = {
     "protoboard": ["protoboard", "tablita", "breadboard", "tabla de pruebas"],
     "arduino": ["arduino"],
     "sensor": ["sensor", "sensores"],
-    "fuente": ["fuente", "eliminador", "cargador", "transformador"],
+    "fuente": ["fuente", "eliminador", "cargador", "transformador", "adaptador"],
     "conector": ["conector", "conectores", "jack", "plug", "borne"],
     "cable": ["cable", "cables", "jumper", "jumpers", "alambre"],
     "pulsador": ["pulsador", "boton", "botón", "switch", "interruptor", "push"],
     "buzzer": ["buzzer", "zumbador", "bocina", "speaker", "altavoz"],
-    "motor": ["motor", "servo", "servomotor", "motor dc"],
+    "motor": ["motor dc", "motor", "servo", "servomotor", "paso a paso", "stepper"],
     "rele": ["rele", "relé", "relay"],
     "potenciometro": ["potenciometro", "potenciómetro", "pot"],
     "display": ["display", "pantalla", "lcd", "oled", "7 segmentos"],
+    "wifi": ["esp8266", "esp32", "wifi", "wi-fi", "internet"],
+    "bluetooth": ["bluetooth", "hc-05", "hc05", "hc-06", "hc06", "ble"],
+    "driver": ["driver", "l298n", "uln2003", "puente h"],
+    "raspberry": ["raspberry", "raspberry pi", "rpi"],
 }
 
 COLORES = ["rojo", "verde", "azul", "amarillo", "blanco", "rgb", "naranja", "violeta"]
 TAMANOS_LED = ["3mm", "5mm", "8mm", "10mm", "smd"]
 TIPOS_TRANSISTOR = ["npn", "pnp", "mosfet", "jfet"]
 TIPOS_DIODOS = ["rectificador", "zener", "schottky", "led", "puente"]
+TIPOS_MOTOR = ["dc", "servo", "paso a paso", "stepper"]
+TIPOS_SENSOR = ["temperatura", "humedad", "distancia", "luz", "movimiento", "proximidad", "ultrasonico", "pir", "dht11", "dht22", "lm35", "ds18b20"]
 
-# Campos que deben estar presentes por tipo para no ser ambiguo
-CAMPOS_REQUERIDOS: dict[str, list[str]] = {
-    "resistencia": ["valor"],
-    "capacitor": ["valor"],
-    "led": ["color", "tamano"],
+# Defaults automáticos basados en las preguntas frecuentes de la tienda.
+# Se aplican ANTES de marcar como ambigüedad. Si el campo tiene default,
+# no genera pregunta.
+DEFAULTS_POR_TIPO: dict[str, dict] = {
+    "resistencia": {"valor": "220", "unidad": "ohm", "potencia": "1/4W"},
+    "capacitor": {"valor": "100", "unidad": "uF"},
+    "led": {"color": "rojo", "tamano": "5mm"},
+    "arduino": {"modelo": "UNO R3"},
+    "protoboard": {"puntos": "830"},
+    "cable": {"tipo": "macho-macho"},
+    "fuente": {"voltaje": "9V", "tipo": "DC jack+"},
+    "pulsador": {"tipo": "push"},
+    "buzzer": {"tipo": "activo"},
+    "rele": {"voltaje": "5V"},
+    "potenciometro": {"valor": "10k", "unidad": "ohm"},
+    "display": {"tipo": "LCD 16x2"},
+    "wifi": {"modelo": "ESP8266"},
+    "bluetooth": {"modelo": "HC-05"},
+    "raspberry": {"modelo": "Raspberry Pi 4"},
+    "driver": {"modelo": "L298N"},
+}
+
+# Campos que requieren pregunta del usuario (NO tienen default automático)
+CAMPOS_PREGUNTA: dict[str, list[str]] = {
+    "sensor": ["tipo_o_modelo"],
+    "motor": ["tipo_o_modelo"],
     "transistor": ["tipo_o_modelo"],
     "diodo": ["tipo_o_modelo"],
+    "integrado": ["tipo_o_modelo"],
 }
 
 
@@ -73,30 +101,75 @@ def normalizar_unidad(unidad: str) -> str:
     return mapa.get(u, u)
 
 
+def aplicar_defaults(tipo: str, texto: str, comp: dict) -> dict:
+    """Aplica defaults automáticos al componente según su tipo.
+
+    Basado en las preguntas frecuentes de AV Electronics:
+    - Resistencias sin valor → 220Ω 1/4W (más común para LEDs)
+    - LEDs sin color/tamaño → 5mm rojo (estándar más vendido)
+    - Arduino sin modelo → UNO R3 (recomendado para principiantes)
+    - Fuente sin voltaje → 9V DC jack+ (más común)
+    - Protoboard sin tamaño → 830 puntos (estándar)
+    - Cables sin tipo → Macho-Macho pack 40
+    """
+    defaults = DEFAULTS_POR_TIPO.get(tipo, {})
+    for campo, val in defaults.items():
+        if campo == "valor" and comp.get("valor") is None:
+            comp["valor"] = val
+            if "unidad" in defaults and comp.get("unidad") is None:
+                comp["unidad"] = defaults["unidad"]
+        elif campo == "color" and not any(c in texto for c in COLORES):
+            comp["color"] = val
+        elif campo == "tamano" and not any(t in texto for t in TAMANOS_LED):
+            comp["tamano"] = val
+        elif campo == "modelo" and comp.get("tipo_o_modelo") is None:
+            comp["tipo_o_modelo"] = val
+        elif campo == "tipo" and comp.get("tipo_o_modelo") is None:
+            comp["tipo_o_modelo"] = val
+        elif campo == "voltaje" and comp.get("valor") is None:
+            comp["valor"] = val
+        elif campo == "puntos" and comp.get("valor") is None:
+            comp["valor"] = val
+        elif comp.get(campo) is None:
+            comp[campo] = val
+    comp["auto_completado"] = bool(defaults)
+    return comp
+
+
 def detectar_ambiguedades(tipo: str, texto: str, valor: str | None) -> list[str]:
-    """Detecta qué campos requeridos faltan según el tipo de componente."""
+    """Detecta qué campos requieren pregunta del usuario.
+
+    Solo se marcan como ambigüedad los campos que NO tienen default automático
+    y que el cliente debe responder obligatoriamente (sensor, motor, transistor, etc.).
+    """
     ambiguedades: list[str] = []
 
     if tipo == "desconocido":
         return ["tipo"]
 
-    requeridos = CAMPOS_REQUERIDOS.get(tipo, [])
-    for campo in requeridos:
-        if campo == "valor":
+    # Campos que requieren pregunta explícita (sin default)
+    campos_pregunta = CAMPOS_PREGUNTA.get(tipo, [])
+    for campo in campos_pregunta:
+        if campo == "tipo_o_modelo":
+            if tipo == "motor":
+                tiene_tipo = any(o in texto for o in TIPOS_MOTOR)
+                tiene_modelo = re.search(r"\b[a-z]{1,3}\d{3,5}[a-z]?\b", texto) is not None
+                if not tiene_tipo and not tiene_modelo:
+                    ambiguedades.append("tipo_o_modelo")
+            elif tipo == "sensor":
+                tiene_tipo = any(o in texto for o in TIPOS_SENSOR)
+                tiene_modelo = re.search(r"\b[a-z]{1,3}\d{3,5}[a-z]?\b", texto) is not None
+                if not tiene_tipo and not tiene_modelo:
+                    ambiguedades.append("tipo_o_modelo")
+            else:
+                opciones = TIPOS_TRANSISTOR if tipo == "transistor" else TIPOS_DIODOS
+                tiene_tipo = any(o in texto for o in opciones)
+                tiene_modelo = re.search(r"\b[a-z]{1,3}\d{3,5}[a-z]?\b", texto) is not None
+                if not tiene_tipo and not tiene_modelo:
+                    ambiguedades.append("tipo_o_modelo")
+        elif campo == "valor":
             if valor is None:
                 ambiguedades.append("valor")
-        elif campo == "color":
-            if not any(c in texto for c in COLORES):
-                ambiguedades.append("color")
-        elif campo == "tamano":
-            if not any(t in texto for t in TAMANOS_LED):
-                ambiguedades.append("tamano")
-        elif campo == "tipo_o_modelo":
-            opciones = TIPOS_TRANSISTOR if tipo == "transistor" else TIPOS_DIODOS
-            tiene_tipo = any(o in texto for o in opciones)
-            tiene_modelo = re.search(r"\b[a-z]{1,3}\d{3,5}[a-z]?\b", texto) is not None
-            if not tiene_tipo and not tiene_modelo:
-                ambiguedades.append("tipo_o_modelo")
 
     return ambiguedades
 

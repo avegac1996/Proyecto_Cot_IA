@@ -48,19 +48,12 @@ TIENDAS_SEED = [
 ]
 
 PREGUNTAS_SEED = [
-    ("General", "¿Podría confirmar si la lista enviada está completa?", None, 8),
-    ("General", "¿Podría confirmar la cantidad exacta de unidades?", "cantidad", 6),
-    ("Resistencias", "¿Cuál es el valor de la resistencia? (ej: 220 Ω, 1 kΩ, 10 kΩ)", "valor", 1),
-    ("Capacitores", "¿Podría indicar la capacitancia del capacitor? (ej: 100 µF, 10 nF)", "valor", 1),
-    ("LED", "¿Qué color o colores de LED necesita?", "color", 1),
-    ("LED", "¿Qué tamaño de LED requiere? (3mm, 5mm, SMD)", "tamano", 2),
-    ("Transistores", "¿El transistor es NPN, PNP, MOSFET u otro tipo?", "tipo_o_modelo", 1),
-    ("Diodos", "¿Necesita un diodo rectificador, Zener o Schottky?", "tipo_o_modelo", 1),
-    ("Integrados", "¿Necesita encapsulado DIP, SMD u otro formato?", "encapsulado", 4),
-    ("Sensores", "¿Podría indicar la aplicación o función del sensor?", "tipo_o_modelo", 3),
-    ("Fuentes", "¿Qué voltaje y corriente necesita la fuente?", "valor", 2),
-    ("Conectores", "¿Qué tipo de conector requiere?", "tipo_o_modelo", 3),
-    ("General", "¿Podría indicar a qué componente se refiere exactamente?", "tipo", 1),
+    ("Sensores", "¿Podría indicar qué tipo de sensor necesita? (ej: temperatura DHT11/DHT22, distancia, luz, movimiento)", "tipo_o_modelo", 1),
+    ("Motores", "¿El motor es DC, servomotor o paso a paso (stepper)?", "tipo_o_modelo", 2),
+    ("Transistores", "¿El transistor es NPN, PNP, MOSFET u otro tipo?", "tipo_o_modelo", 3),
+    ("Diodos", "¿Necesita un diodo rectificador, Zener o Schottky?", "tipo_o_modelo", 4),
+    ("Integrados", "¿Qué circuito integrado o chip necesita? (ej: ATmega328P, NE555)", "tipo_o_modelo", 5),
+    ("General", "¿Podría indicar a qué componente se refiere exactamente?", "tipo", 6),
 ]
 
 PRODUCTOS_SEED = [
