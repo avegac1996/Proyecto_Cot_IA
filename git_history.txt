@@ -13,3 +13,4 @@ Alisson - feat: agregar loading state en busqueda por imagen
 Alisson - fix: resolver error de autenticacion en refresh
 Alisson - feat: mejorar diseno de tabla de cotizaciones
 Alisson - refactor: extraer componente AgenteChat
+Alisson - fix: corregir margen aplicado en tiendas externas
