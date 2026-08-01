@@ -11,6 +11,8 @@ from app.services.scraping.scrapers.base import BaseScraper
 
 logger = logging.getLogger(__name__)
 
+MAX_PRODUCT_PAGES = 5
+
 
 class DynamicScraper(BaseScraper):
     """Scraper para sitios que requieren renderizado JavaScript (Playwright)."""
@@ -46,6 +48,8 @@ class DynamicScraper(BaseScraper):
                         return results
 
                 cards = await page.query_selector_all(card_selector) if card_selector else []
+
+                page_visit_count = 0
 
                 for card in cards:
                     # URL del producto
@@ -98,7 +102,8 @@ class DynamicScraper(BaseScraper):
                                 continue
 
                     # Si no hay precio en búsqueda, visitar página de producto
-                    if url_producto:
+                    if url_producto and page_visit_count < MAX_PRODUCT_PAGES:
+                        page_visit_count += 1
                         page_price_sel = self.selectores.get("product_page_price", "p.price")
                         page_avail_sel = self.selectores.get("product_page_availability", ".stock")
                         precio, page_disp = await self._scrape_product_page_playwright(

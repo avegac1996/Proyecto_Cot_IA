@@ -16,6 +16,8 @@ from app.services.scraping.scrapers.base import BaseScraper
 
 logger = logging.getLogger(__name__)
 
+MAX_PRODUCT_PAGES = 5
+
 HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -65,6 +67,8 @@ class StaticScraper(BaseScraper):
         # Determinar disponibilidad desde clases del card (WooCommerce)
         stock_in_classes = self.selectores.get("stock_in_classes", False)
 
+        page_visit_count = 0
+
         for card in cards:
             # Obtener URL del producto
             url_producto = None
@@ -110,8 +114,9 @@ class StaticScraper(BaseScraper):
                         })
                         continue
 
-            # Si no hay precio en búsqueda, visitar página de producto
-            if url_producto:
+            # Si no hay precio en búsqueda, visitar página de producto (limitado)
+            if url_producto and page_visit_count < MAX_PRODUCT_PAGES:
+                page_visit_count += 1
                 page_price_selector = self.selectores.get("product_page_price", "p.price")
                 page_avail_selector = self.selectores.get("product_page_availability", ".stock")
                 precio, page_disponible = await self._scrape_product_page(
