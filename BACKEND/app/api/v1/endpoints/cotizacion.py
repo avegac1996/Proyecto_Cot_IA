@@ -60,6 +60,7 @@ class ItemCarritoRequest(BaseModel):
 class CrearDesdeCarritoRequest(BaseModel):
     items: list[ItemCarritoRequest]
     cliente_nombre: str | None = None
+    cotizacion_id: int | None = None
 
 
 @router.post("/cotizacion/desde-carrito", response_model=CotizacionResponse, status_code=status.HTTP_201_CREATED)
@@ -71,6 +72,7 @@ async def crear_desde_carrito(
     """Crea una cotización directamente desde los items del carrito.
 
     No pasa por upload/preguntas. Los items ya tienen tienda y precio seleccionados.
+    Si se envía cotizacion_id, agrega los items a una cotización existente.
     """
     if not body.items:
         raise HTTPException(
@@ -81,25 +83,34 @@ async def crear_desde_carrito(
     import uuid as uuid_mod
     from decimal import Decimal
 
-    sesion = Sesion(
-        id=uuid_mod.uuid4(),
-        usuario_id=user.id,
-        componentes_json=[],
-    )
-    db.add(sesion)
-    await db.flush()
+    # Si se envía cotizacion_id, agregar items a cotización existente
+    if body.cotizacion_id is not None:
+        cotizacion = await _get_cotizacion_by_id(body.cotizacion_id, user, db)
+        if cotizacion.estado == "finalizada":
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={"code": "COTIZACION_LOCKED", "message": "La cotización ya está finalizada"},
+            )
+    else:
+        sesion = Sesion(
+            id=uuid_mod.uuid4(),
+            usuario_id=user.id,
+            componentes_json=[],
+        )
+        db.add(sesion)
+        await db.flush()
 
-    cotizacion = Cotizacion(
-        session_id=sesion.id,
-        usuario_id=user.id,
-        cliente_nombre=body.cliente_nombre,
-        estado="pendiente",
-        total=Decimal("0"),
-    )
-    db.add(cotizacion)
-    await db.flush()
+        cotizacion = Cotizacion(
+            session_id=sesion.id,
+            usuario_id=user.id,
+            cliente_nombre=body.cliente_nombre,
+            estado="pendiente",
+            total=Decimal("0"),
+        )
+        db.add(cotizacion)
+        await db.flush()
 
-    total = Decimal("0")
+    total = cotizacion.total if body.cotizacion_id is not None else Decimal("0")
     for item_req in body.items:
         precio_val = item_req.precio_unitario if item_req.precio_unitario is not None else 0.0
         margen_val = item_req.margen_aplicado if item_req.margen_aplicado is not None else 0.0

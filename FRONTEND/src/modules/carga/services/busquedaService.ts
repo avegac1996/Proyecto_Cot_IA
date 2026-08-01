@@ -6,6 +6,11 @@ export async function buscarComponentes(texto: string): Promise<BusquedaResponse
   return data
 }
 
+export async function getCotizacionById(cotizacionId: number): Promise<Cotizacion> {
+  const { data } = await api.get<Cotizacion>(`/cotizacion/by-id/${cotizacionId}`)
+  return data
+}
+
 export async function buscarAlternativas(
   nombreProducto: string,
   tiendaExcluir: string
@@ -28,7 +33,8 @@ export async function actualizarMargen(margen: number): Promise<ConfiguracionNeg
 }
 
 export async function crearCotizacionDesdeCarrito(
-  items: ItemCarrito[]
+  items: ItemCarrito[],
+  cotizacionId?: number
 ): Promise<Cotizacion> {
   const payload = {
     items: items.map((item) => ({
@@ -41,6 +47,7 @@ export async function crearCotizacionDesdeCarrito(
       es_propio: item.opcion_seleccionada.es_propio,
       url: item.opcion_seleccionada.url,
     })),
+    cotizacion_id: cotizacionId ?? null,
   }
   const { data } = await api.post<Cotizacion>('/cotizacion/desde-carrito', payload)
   return data

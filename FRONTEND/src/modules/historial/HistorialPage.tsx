@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { useLocation } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { AlertCircle, Eye, History, Loader2, Trash2, Download, X, FileText, Lock, Plus } from 'lucide-react'
 import type { CotizacionListItem, Cotizacion } from '@/shared/types'
 import {
@@ -9,7 +9,6 @@ import {
   eliminarCotizacion,
   descargarPDF,
   finalizarCotizacion,
-  agregarItem,
 } from './services/historialService'
 
 const ESTADO_STYLE: Record<string, { bg: string; color: string }> = {
@@ -24,6 +23,7 @@ function money(value: string | number): string {
 }
 
 export default function HistorialPage() {
+  const navigate = useNavigate()
   const location = useLocation()
   const [cotizaciones, setCotizaciones] = useState<CotizacionListItem[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -32,8 +32,6 @@ export default function HistorialPage() {
   const [isLoadingDetalle, setIsLoadingDetalle] = useState(false)
   const [eliminandoId, setEliminandoId] = useState<number | null>(null)
   const [highlightId, setHighlightId] = useState<number | null>(null)
-  const [nuevoItemTexto, setNuevoItemTexto] = useState('')
-  const [agregandoItem, setAgregandoItem] = useState(false)
   const [finalizando, setFinalizando] = useState(false)
 
   const cargarHistorial = useCallback(() => {
@@ -88,27 +86,11 @@ export default function HistorialPage() {
     }
   }
 
-  const handleAgregarItem = async () => {
-    if (!cotizacionDetalle || !nuevoItemTexto.trim()) return
-    setAgregandoItem(true)
-    setError(null)
-    try {
-      const data = await agregarItem(cotizacionDetalle.cotizacion_id, nuevoItemTexto.trim())
-      setCotizacionDetalle(data)
-      setNuevoItemTexto('')
-      setCotizaciones((prev) =>
-        prev.map((c) =>
-          c.cotizacion_id === data.cotizacion_id
-            ? { ...c, total: data.total, total_items: data.items.length }
-            : c
-        )
-      )
-    } catch (err) {
-      const e = err as { response?: { data?: { detail?: { message?: string } } } }
-      setError(e.response?.data?.detail?.message || 'Error al agregar producto')
-    } finally {
-      setAgregandoItem(false)
-    }
+  const handleAgregarMas = () => {
+    if (!cotizacionDetalle) return
+    const cid = cotizacionDetalle.cotizacion_id
+    setCotizacionDetalle(null)
+    navigate('/carga', { state: { cotizacionId: cid } })
   }
 
   const handleEliminar = async (cotizacionId: number) => {
@@ -404,33 +386,17 @@ export default function HistorialPage() {
 
               {cotizacionDetalle.estado !== 'finalizada' && (
                 <div className="mt-4 pt-4 border-t" style={{ borderColor: 'var(--color-border)' }}>
-                  <label className="block text-sm font-medium mb-2" style={{ color: 'var(--color-text)' }}>
-                    Agregar producto
-                  </label>
-                  <p className="text-xs mb-2" style={{ color: 'var(--color-text-muted)' }}>
-                    Escribe el nombre y cantidad del producto. Ej: "5 Arduino Uno R3"
+                  <button
+                    onClick={handleAgregarMas}
+                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg font-medium text-white text-sm transition-colors"
+                    style={{ backgroundColor: 'var(--color-primary)' }}
+                  >
+                    <Plus className="w-4 h-4" />
+                    Agregar más productos
+                  </button>
+                  <p className="text-xs text-center mt-2" style={{ color: 'var(--color-text-muted)' }}>
+                    Irás a la página de carga para buscar y agregar nuevos productos
                   </p>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={nuevoItemTexto}
-                      onChange={(e) => setNuevoItemTexto(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === 'Enter' && nuevoItemTexto.trim()) handleAgregarItem() }}
-                      placeholder="Ej: 3 Sensor HC-SR04"
-                      disabled={agregandoItem}
-                      className="flex-1 px-3 py-2 rounded-lg border outline-none text-sm"
-                      style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-bg)', color: 'var(--color-text)' }}
-                    />
-                    <button
-                      onClick={handleAgregarItem}
-                      disabled={agregandoItem || !nuevoItemTexto.trim()}
-                      className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-white text-sm font-medium disabled:opacity-60"
-                      style={{ backgroundColor: 'var(--color-primary)' }}
-                    >
-                      {agregandoItem ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-                      Agregar
-                    </button>
-                  </div>
                 </div>
               )}
             </div>

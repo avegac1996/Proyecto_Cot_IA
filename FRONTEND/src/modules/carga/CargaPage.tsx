@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { Search, Loader2, AlertCircle, Send, Mic, Image as ImageIcon, FileText, Type, Info } from 'lucide-react'
-import { buscarComponentes, crearCotizacionDesdeCarrito } from './services/busquedaService'
+import { useNavigate, useLocation } from 'react-router-dom'
+import { Search, Loader2, AlertCircle, Send, Mic, Image as ImageIcon, FileText, Type, Info, ArrowLeft } from 'lucide-react'
+import { buscarComponentes, crearCotizacionDesdeCarrito, getCotizacionById } from './services/busquedaService'
 import TarjetaProducto from './components/TarjetaProducto'
 import CarritoPreview from './components/CarritoPreview'
 import VoiceInput from './components/VoiceInput'
@@ -11,6 +11,7 @@ import type { ResultadoComponente, OpcionProducto, ItemCarrito } from '@/shared/
 
 export default function CargaPage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const [mensaje, setMensaje] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -18,12 +19,37 @@ export default function CargaPage() {
   const [carrito, setCarrito] = useState<ItemCarrito[]>([])
   const [metodoActivo, setMetodoActivo] = useState<'texto' | 'voz' | 'imagen' | 'archivo'>('texto')
   const resultadosRef = useRef<HTMLDivElement>(null)
+  const editandoCotizacionId = (location.state as { cotizacionId?: number } | null)?.cotizacionId ?? null
 
   useEffect(() => {
     if (resultados.length > 0 && resultadosRef.current) {
       resultadosRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
     }
   }, [resultados])
+
+  useEffect(() => {
+    if (editandoCotizacionId) {
+      getCotizacionById(editandoCotizacionId).then((cot) => {
+        const itemsExistentes: ItemCarrito[] = cot.items.map((item) => ({
+          termino: `${item.producto_nombre} - ${item.proveedor}`,
+          cantidad: item.cantidad,
+          opcion_seleccionada: {
+            tienda: item.proveedor,
+            nombre_producto: item.producto_nombre,
+            precio_base: parseFloat(item.precio_unitario),
+            precio_con_margen: parseFloat(item.precio_unitario),
+            margen_aplicado: parseFloat(item.margen_aplicado),
+            disponible: item.disponible,
+            url: null,
+            es_propio: item.es_propio,
+          },
+        }))
+        setCarrito(itemsExistentes)
+      }).catch(() => {
+        setError('No se pudo cargar la cotización existente')
+      })
+    }
+  }, [editandoCotizacionId])
 
   const handleBuscar = async () => {
     await handleBuscarWith(mensaje)
@@ -88,7 +114,7 @@ export default function CargaPage() {
     setIsLoading(true)
     setError(null)
     try {
-      const cotizacion = await crearCotizacionDesdeCarrito(carrito)
+      const cotizacion = await crearCotizacionDesdeCarrito(carrito, editandoCotizacionId ?? undefined)
       navigate('/historial', { state: { cotizacionCreada: cotizacion.cotizacion_id } })
     } catch (err) {
       const e = err as { response?: { data?: { detail?: unknown } }; message?: string }
@@ -131,6 +157,21 @@ export default function CargaPage() {
           </p>
         </div>
       </div>
+
+      {editandoCotizacionId && (
+        <div
+          className="flex items-center gap-3 rounded-lg border p-3"
+          style={{ borderColor: '#DBEAFE', backgroundColor: '#EFF6FF', color: '#1E40AF' }}
+        >
+          <ArrowLeft
+            className="w-4 h-4 flex-shrink-0 cursor-pointer hover:opacity-70"
+            onClick={() => navigate('/historial')}
+          />
+          <span className="text-sm font-medium">
+            Editando cotización #{editandoCotizacionId} — los productos que agregues se sumarán a esta cotización
+          </span>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Columna principal */}
