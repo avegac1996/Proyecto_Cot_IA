@@ -7,9 +7,8 @@ from app.core.config import settings
 from app.models.producto import Producto
 from app.models.sesion import Sesion
 from app.models.cotizacion import Cotizacion, CotizacionItem
+from app.services.configuracion import obtener_margen, obtener_tienda_propia
 from app.services.scraping.engine import buscar_precios
-
-TIENDA_PROPIA = settings.TIENDA_PROPIA
 
 # Reglas de auto-sugerencia basadas en preguntas frecuentes de AV Electronics
 REGLAS_SUGERENCIA = {
@@ -72,7 +71,7 @@ async def _buscar_producto(db: AsyncSession, comp: dict) -> Producto | None:
     return candidatos[0]
 
 
-def _construir_opcion(prov: dict, margen: Decimal, es_propio: bool) -> dict | None:
+def _construir_opcion(prov: dict, margen: Decimal, es_propio: bool, margen_pct: float = 0.0) -> dict | None:
     """Construye una opción de proveedor con o sin margen."""
     precio = prov["precio_unitario"]
     if precio is None:
@@ -80,16 +79,16 @@ def _construir_opcion(prov: dict, margen: Decimal, es_propio: bool) -> dict | No
 
     if es_propio:
         precio_final = Decimal(str(precio)).quantize(Decimal("0.01"))
-        margen_pct = Decimal(0)
+        margen_aplicado = Decimal(0)
     else:
         precio_final = (Decimal(str(precio)) * (1 + margen)).quantize(Decimal("0.01"))
-        margen_pct = Decimal(str(settings.MARGEN_COMPETENCIA))
+        margen_aplicado = Decimal(str(margen_pct))
 
     return {
         "tienda": prov["tienda"],
         "precio_base": float(Decimal(str(precio)).quantize(Decimal("0.01"))),
         "precio_con_margen": float(precio_final),
-        "margen_aplicado": float(margen_pct),
+        "margen_aplicado": float(margen_aplicado),
         "disponible": prov["disponible"],
         "url": prov.get("url"),
         "es_propio": es_propio,
@@ -150,7 +149,9 @@ async def generar_cotizacion(
       el usuario debe seleccionar la mejor (seleccionado=False).
     - Si nadie lo tiene → "Sin datos".
     """
-    margen = Decimal(str(settings.MARGEN_COMPETENCIA)) / Decimal(100)
+    margen_pct = await obtener_margen(db)
+    margen = Decimal(str(margen_pct)) / Decimal(100)
+    tienda_propia = await obtener_tienda_propia(db)
 
     cotizacion = Cotizacion(
         session_id=sesion.id,
@@ -174,7 +175,7 @@ async def generar_cotizacion(
         prov_otros = []
         for prov in proveedores:
             if prov["disponible"] and prov["precio_unitario"] is not None:
-                if prov["tienda"] == TIENDA_PROPIA:
+                if prov["tienda"] == tienda_propia:
                     prov_propio = prov
                 else:
                     prov_otros.append(prov)
@@ -188,7 +189,7 @@ async def generar_cotizacion(
                 producto_nombre=nombre,
                 cantidad=cantidad,
                 precio_unitario=precio_unit,
-                proveedor=TIENDA_PROPIA,
+                proveedor=tienda_propia,
                 margen_aplicado=Decimal(0),
                 subtotal=subtotal,
                 disponible=True,
@@ -201,7 +202,7 @@ async def generar_cotizacion(
             # AV no lo tiene → mostrar todas las opciones con 5% margen
             opciones = []
             for prov in prov_otros:
-                op = _construir_opcion(prov, margen, es_propio=False)
+                op = _construir_opcion(prov, margen, es_propio=False, margen_pct=margen_pct)
                 if op:
                     opciones.append(op)
 
@@ -216,7 +217,7 @@ async def generar_cotizacion(
                     cantidad=cantidad,
                     precio_unitario=precio_unit,
                     proveedor=mejor["tienda"],
-                    margen_aplicado=Decimal(str(settings.MARGEN_COMPETENCIA)),
+                    margen_aplicado=Decimal(str(margen_pct)),
                     subtotal=subtotal,
                     disponible=True,
                     es_propio=False,
@@ -249,7 +250,7 @@ async def generar_cotizacion(
         sug_otros = []
         for prov in sug_proveedores:
             if prov["disponible"] and prov["precio_unitario"] is not None:
-                if prov["tienda"] == TIENDA_PROPIA:
+                if prov["tienda"] == tienda_propia:
                     sug_propio = prov
                 else:
                     sug_otros.append(prov)
@@ -262,7 +263,7 @@ async def generar_cotizacion(
                 producto_nombre=sug_nombre,
                 cantidad=sug_cantidad,
                 precio_unitario=precio_unit,
-                proveedor=TIENDA_PROPIA,
+                proveedor=tienda_propia,
                 margen_aplicado=Decimal(0),
                 subtotal=subtotal,
                 disponible=True,
@@ -274,7 +275,7 @@ async def generar_cotizacion(
         elif sug_otros:
             opciones = []
             for prov in sug_otros:
-                op = _construir_opcion(prov, margen, es_propio=False)
+                op = _construir_opcion(prov, margen, es_propio=False, margen_pct=margen_pct)
                 if op:
                     opciones.append(op)
             if opciones:
@@ -288,7 +289,7 @@ async def generar_cotizacion(
                     cantidad=sug_cantidad,
                     precio_unitario=precio_unit,
                     proveedor=mejor["tienda"],
-                    margen_aplicado=Decimal(str(settings.MARGEN_COMPETENCIA)),
+                    margen_aplicado=Decimal(str(margen_pct)),
                     subtotal=subtotal,
                     disponible=True,
                     es_propio=False,
@@ -316,7 +317,9 @@ async def agregar_item_cotizacion(
     db: AsyncSession, cotizacion: Cotizacion, comp: dict
 ) -> CotizacionItem:
     """Agrega un nuevo componente a una cotización existente (carrito)."""
-    margen = Decimal(str(settings.MARGEN_COMPETENCIA)) / Decimal(100)
+    margen_pct = await obtener_margen(db)
+    margen = Decimal(str(margen_pct)) / Decimal(100)
+    tienda_propia = await obtener_tienda_propia(db)
     producto = await _buscar_producto(db, comp)
     nombre = producto.nombre if producto else _nombre_producto(comp)
     cantidad = int(comp.get("cantidad", 1))
@@ -329,7 +332,7 @@ async def agregar_item_cotizacion(
     prov_otros = []
     for prov in proveedores:
         if prov["disponible"] and prov["precio_unitario"] is not None:
-            if prov["tienda"] == TIENDA_PROPIA:
+            if prov["tienda"] == tienda_propia:
                 prov_propio = prov
             else:
                 prov_otros.append(prov)
@@ -343,7 +346,7 @@ async def agregar_item_cotizacion(
             producto_nombre=nombre,
             cantidad=cantidad,
             precio_unitario=precio_unit,
-            proveedor=TIENDA_PROPIA,
+            proveedor=tienda_propia,
             margen_aplicado=Decimal(0),
             subtotal=subtotal,
             disponible=True,
@@ -369,7 +372,7 @@ async def agregar_item_cotizacion(
                 cantidad=cantidad,
                 precio_unitario=precio_unit,
                 proveedor=mejor["tienda"],
-                margen_aplicado=Decimal(str(settings.MARGEN_COMPETENCIA)),
+                margen_aplicado=Decimal(str(margen_pct)),
                 subtotal=subtotal,
                 disponible=True,
                 es_propio=False,

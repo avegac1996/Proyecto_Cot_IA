@@ -59,10 +59,12 @@ class BaseScraper(ABC):
         return not any(kw in text_lower for kw in unavailable_keywords)
 
     @abstractmethod
-    async def scrape(self, query: str) -> dict:
-        """Ejecuta el scraping y devuelve un dict con precio, disponible y url.
+    async def scrape(self, query: str) -> list[dict]:
+        """Ejecuta el scraping y devuelve una LISTA de resultados.
 
         Returns:
-            dict con keys: precio (float|None), disponible (bool), url (str|None)
+            list[dict] donde cada dict tiene keys:
+                precio (float|None), disponible (bool), url (str|None),
+                nombre_producto (str|None)
         """
         ...

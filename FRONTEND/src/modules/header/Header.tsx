@@ -5,6 +5,7 @@ import {
   FileText,
   History,
   Users,
+  Settings,
 } from 'lucide-react'
 import { useAuthStore } from '@/shared/store/authStore'
 import ThemeToggle from './ThemeToggle'
@@ -17,7 +18,10 @@ const TABS = [
   { to: '/historial', label: 'Historial', icon: History },
 ]
 
-const ADMIN_TABS = [{ to: '/usuarios', label: 'Usuarios', icon: Users }]
+const ADMIN_TABS = [
+  { to: '/usuarios', label: 'Usuarios', icon: Users },
+  { to: '/admin/configuracion', label: 'Config', icon: Settings },
+]
 
 export default function Header() {
   const user = useAuthStore((s) => s.user)

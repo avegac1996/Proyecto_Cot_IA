@@ -10,6 +10,7 @@ from app.core.database import Base, async_session, engine
 from app.core.security import hash_password
 from app.models import (
     BancoPregunta,
+    ConfiguracionNegocio,
     Equivalencia,
     Producto,
     Tienda,
@@ -44,6 +45,23 @@ TIENDAS_SEED = [
         },
         "usa_javascript": True,
         "ttl_horas": 12,
+    },
+    {
+        "nombre": "ElectroStore",
+        "url_base": "https://electrostoree.com/",
+        "selectores": {
+            "product_card": "div.product-card, .card--product, .card",
+            "product_url": "a.product-title, .card__title a, .card__heading a",
+            "price": ".price, .price__regular",
+            "availability": ".product-form__inventory, .stock-status",
+            "stock_in_classes": False,
+            "search_url": "https://electrostoree.com/search?q={query}",
+            "product_page_price": ".price__regular .price-item",
+            "product_page_availability": ".product-form__inventory, .stock-status",
+        },
+        "usa_javascript": False,
+        "ttl_horas": 48,
+        "activa": False,
     },
 ]
 
@@ -107,6 +125,21 @@ async def seed_catalogos():
                     ))
 
         await db.commit()
+
+        # Seed de configuración de negocio
+        result = await db.execute(select(ConfiguracionNegocio))
+        if result.first() is None:
+            db.add(ConfiguracionNegocio(
+                clave="margen_competencia",
+                valor="5.0",
+                descripcion="Margen % aplicado a productos de tiendas externas",
+            ))
+            db.add(ConfiguracionNegocio(
+                clave="tienda_propia",
+                valor="AV Electronics",
+                descripcion="Nombre de la tienda propia (sin margen)",
+            ))
+            await db.commit()
 
 
 async def seed_default_users():

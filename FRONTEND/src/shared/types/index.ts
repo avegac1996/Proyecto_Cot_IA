@@ -89,3 +89,36 @@ export interface CotizacionListItem {
   total_items: number
   fecha_creacion: string
 }
+
+export interface OpcionProducto {
+  tienda: string
+  nombre_producto: string
+  precio_base: number | null
+  precio_con_margen: number | null
+  margen_aplicado: number
+  disponible: boolean
+  url: string | null
+  es_propio: boolean
+}
+
+export interface ResultadoComponente {
+  termino: string
+  cantidad: number
+  encontrado_propia: boolean
+  opciones: OpcionProducto[]
+}
+
+export interface BusquedaResponse {
+  resultados: ResultadoComponente[]
+}
+
+export interface ConfiguracionNegocio {
+  margen_competencia: number
+  tienda_propia: string
+}
+
+export interface ItemCarrito {
+  termino: string
+  cantidad: number
+  opcion_seleccionada: OpcionProducto
+}

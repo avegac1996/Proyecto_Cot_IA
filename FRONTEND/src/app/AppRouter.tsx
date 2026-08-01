@@ -10,6 +10,7 @@ const PreguntasPage = lazy(() => import('@/modules/preguntas/PreguntasPage'))
 const CotizacionPage = lazy(() => import('@/modules/cotizacion/CotizacionPage'))
 const HistorialPage = lazy(() => import('@/modules/historial/HistorialPage'))
 const UsuariosPage = lazy(() => import('@/modules/usuarios/UsuariosPage'))
+const ConfiguracionPage = lazy(() => import('@/modules/admin/ConfiguracionPage'))
 
 function PageFallback() {
   return (
@@ -53,6 +54,14 @@ export default function AppRouter() {
             element={
               <AdminRoute>
                 <Suspense fallback={<PageFallback />}><UsuariosPage /></Suspense>
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/configuracion"
+            element={
+              <AdminRoute>
+                <Suspense fallback={<PageFallback />}><ConfiguracionPage /></Suspense>
               </AdminRoute>
             }
           />

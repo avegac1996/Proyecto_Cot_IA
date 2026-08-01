@@ -15,15 +15,15 @@ logger = logging.getLogger(__name__)
 class DynamicScraper(BaseScraper):
     """Scraper para sitios que requieren renderizado JavaScript (Playwright)."""
 
-    async def scrape(self, query: str) -> dict:
+    async def scrape(self, query: str) -> list[dict]:
         url_busqueda = self._build_search_url(query)
-        result = {"precio": None, "disponible": False, "url": None}
+        results: list[dict] = []
 
         try:
             from playwright.async_api import async_playwright
         except ImportError:
             logger.error("Playwright no está instalado. Ejecutar: pip install playwright && playwright install chromium")
-            return result
+            return results
 
         try:
             async with async_playwright() as p:
@@ -43,7 +43,7 @@ class DynamicScraper(BaseScraper):
                     except Exception:
                         logger.info("No se encontraron productos dinámicos en %s", self.nombre_tienda)
                         await browser.close()
-                        return result
+                        return results
 
                 cards = await page.query_selector_all(card_selector) if card_selector else []
 
@@ -61,6 +61,13 @@ class DynamicScraper(BaseScraper):
                                     url_producto = f"{self.url_base}/{href}"
                                 else:
                                     url_producto = href
+
+                    # Nombre del producto
+                    nombre_producto = None
+                    if link_selector:
+                        link_el = await card.query_selector(link_selector)
+                        if link_el:
+                            nombre_producto = await link_el.inner_text()
 
                     # Disponibilidad
                     disponible = True
@@ -82,13 +89,13 @@ class DynamicScraper(BaseScraper):
                             price_text = await price_el.inner_text()
                             precio = self._parse_price(price_text)
                             if precio is not None:
-                                result = {
+                                results.append({
                                     "precio": precio,
                                     "disponible": disponible,
                                     "url": url_producto,
-                                }
-                                await browser.close()
-                                return result
+                                    "nombre_producto": nombre_producto,
+                                })
+                                continue
 
                     # Si no hay precio en búsqueda, visitar página de producto
                     if url_producto:
@@ -98,19 +105,18 @@ class DynamicScraper(BaseScraper):
                             browser, url_producto, page_price_sel, page_avail_sel
                         )
                         if precio is not None:
-                            result = {
+                            results.append({
                                 "precio": precio,
                                 "disponible": page_disp if page_disp is not None else disponible,
                                 "url": url_producto,
-                            }
-                            await browser.close()
-                            return result
+                                "nombre_producto": nombre_producto,
+                            })
 
                 await browser.close()
         except Exception as exc:
             logger.error("Error en scraping dinámico de %s: %s", self.nombre_tienda, exc)
 
-        return result
+        return results
 
     async def _scrape_product_page_playwright(
         self, browser, url: str, price_selector: str, avail_selector: str

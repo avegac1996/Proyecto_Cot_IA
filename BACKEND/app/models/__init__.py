@@ -1,4 +1,5 @@
 from app.models.banco_preguntas import BancoPregunta
+from app.models.configuracion import ConfiguracionNegocio
 from app.models.cotizacion import Cotizacion, CotizacionItem
 from app.models.equivalencia import Equivalencia
 from app.models.producto import Producto
@@ -17,4 +18,5 @@ __all__ = [
     "Cotizacion",
     "CotizacionItem",
     "ScrapingCache",
+    "ConfiguracionNegocio",
 ]

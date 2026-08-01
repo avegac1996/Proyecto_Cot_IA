@@ -30,9 +30,9 @@ HEADERS = {
 class StaticScraper(BaseScraper):
     """Scraper para sitios que no requieren JavaScript (HTML estático)."""
 
-    async def scrape(self, query: str) -> dict:
+    async def scrape(self, query: str) -> list[dict]:
         url_busqueda = self._build_search_url(query)
-        result = {"precio": None, "disponible": False, "url": None}
+        results: list[dict] = []
 
         try:
             async with httpx.AsyncClient(
@@ -44,7 +44,7 @@ class StaticScraper(BaseScraper):
                 response.raise_for_status()
         except httpx.HTTPError as exc:
             logger.warning("Error HTTP en %s: %s", self.nombre_tienda, exc)
-            return result
+            return results
 
         soup = BeautifulSoup(response.text, "html.parser")
 
@@ -55,12 +55,12 @@ class StaticScraper(BaseScraper):
 
         if not card_selector:
             logger.warning("No hay selector 'product_card' para %s", self.nombre_tienda)
-            return result
+            return results
 
         cards = soup.select(card_selector)
         if not cards:
             logger.info("No se encontraron productos en %s para query '%s'", self.nombre_tienda, query)
-            return result
+            return results
 
         # Determinar disponibilidad desde clases del card (WooCommerce)
         stock_in_classes = self.selectores.get("stock_in_classes", False)
@@ -79,6 +79,13 @@ class StaticScraper(BaseScraper):
                     else:
                         url_producto = href
 
+            # Nombre del producto
+            nombre_producto = None
+            if link_selector:
+                link_el = card.select_one(link_selector)
+                if link_el:
+                    nombre_producto = link_el.get_text(strip=True)
+
             # Disponibilidad
             disponible = True
             if stock_in_classes and hasattr(card, "get"):
@@ -95,12 +102,13 @@ class StaticScraper(BaseScraper):
                 if price_el:
                     precio = self._parse_price(price_el.get_text(strip=True))
                     if precio is not None:
-                        result = {
+                        results.append({
                             "precio": precio,
                             "disponible": disponible,
                             "url": url_producto,
-                        }
-                        return result
+                            "nombre_producto": nombre_producto,
+                        })
+                        continue
 
             # Si no hay precio en búsqueda, visitar página de producto
             if url_producto:
@@ -110,14 +118,14 @@ class StaticScraper(BaseScraper):
                     url_producto, page_price_selector, page_avail_selector
                 )
                 if precio is not None:
-                    result = {
+                    results.append({
                         "precio": precio,
                         "disponible": page_disponible if page_disponible is not None else disponible,
                         "url": url_producto,
-                    }
-                    return result
+                        "nombre_producto": nombre_producto,
+                    })
 
-        return result
+        return results
 
     async def _scrape_product_page(
         self, url: str, price_selector: str, avail_selector: str
