@@ -43,3 +43,4 @@ Dilan - fix: corregir validacion de rango de fechas
 Dilan - feat: agregar badge de usuario en detalle
 Dilan - refactor: extraer utils de formato
 Dilan - fix: corregir bug al eliminar ultima cotizacion
+Dilan - feat: agregar agrupacion por dia en historial
