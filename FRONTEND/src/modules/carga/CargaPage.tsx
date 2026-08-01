@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Search, Loader2, AlertCircle, Sparkles, Info, Send } from 'lucide-react'
+import { Search, Loader2, AlertCircle, Sparkles, Info, Send, Mic, Image as ImageIcon, FileText } from 'lucide-react'
 import { buscarComponentes } from './services/busquedaService'
 import { extractUploadError, uploadFile } from './services/uploadService'
 import { useCotizacionStore } from '@/shared/store/cotizacionStore'
@@ -8,6 +8,9 @@ import TarjetaProducto from './components/TarjetaProducto'
 import CarritoPreview from './components/CarritoPreview'
 import DropZone from './components/DropZone'
 import FilePreview from './components/FilePreview'
+import VoiceInput from './components/VoiceInput'
+import ImageInput from './components/ImageInput'
+import FileInput from './components/FileInput'
 import type { ResultadoComponente, OpcionProducto, ItemCarrito } from '@/shared/types'
 
 export default function CargaPage() {
@@ -42,6 +45,10 @@ export default function CargaPage() {
     } finally {
       setIsLoading(false)
     }
+  }
+
+  const handleVoiceTranscript = (text: string) => {
+    setMensaje((prev) => (prev ? prev + ' ' + text : text))
   }
 
   const handleSeleccionar = (termino: string, _cantidad: number, opcion: OpcionProducto) => {
@@ -160,6 +167,48 @@ export default function CargaPage() {
                 </>
               )}
             </button>
+          </div>
+
+          {/* Input por voz */}
+          <div
+            className="rounded-xl border p-4"
+            style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}
+          >
+            <div className="flex items-center gap-2 mb-2">
+              <Mic className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />
+              <span className="text-xs font-bold" style={{ color: 'var(--color-text)' }}>
+                Entrada por voz
+              </span>
+            </div>
+            <VoiceInput onTranscript={handleVoiceTranscript} disabled={isLoading} />
+          </div>
+
+          {/* Input por imagen (OCR) */}
+          <div
+            className="rounded-xl border p-4"
+            style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}
+          >
+            <div className="flex items-center gap-2 mb-2">
+              <ImageIcon className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />
+              <span className="text-xs font-bold" style={{ color: 'var(--color-text)' }}>
+                Entrada por imagen (OCR)
+              </span>
+            </div>
+            <ImageInput onTextExtracted={handleVoiceTranscript} disabled={isLoading} />
+          </div>
+
+          {/* Input por archivo (PDF/Word/Excel) */}
+          <div
+            className="rounded-xl border p-4"
+            style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}
+          >
+            <div className="flex items-center gap-2 mb-2">
+              <FileText className="w-4 h-4" style={{ color: 'var(--color-primary)' }} />
+              <span className="text-xs font-bold" style={{ color: 'var(--color-text)' }}>
+                Entrada por archivo
+              </span>
+            </div>
+            <FileInput onTextExtracted={handleVoiceTranscript} disabled={isLoading} />
           </div>
 
           {/* Resultados de búsqueda */}
