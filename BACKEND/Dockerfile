@@ -5,6 +5,7 @@ WORKDIR /app
 # Dependencias del sistema
 RUN apt-get update && apt-get install -y \
     build-essential \
+    git \
     libpq-dev \
     # Playwright/Chromium dependencies
     libnss3 \
@@ -24,7 +25,7 @@ RUN apt-get update && apt-get install -y \
     libcairo2 \
     libx11-6 \
     libxcb1 \
-    libxext-6 \
+    libxext6 \
     libdbus-1-3 \
     libatspi2.0-0 \
     libexpat1 \
@@ -39,7 +40,11 @@ RUN apt-get update && apt-get install -y \
 
 # Dependencias de Python
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir setuptools==69.5.1 wheel
+RUN pip install --no-cache-dir --no-build-isolation -r requirements.txt
+# Instalar Whisper por separado (setup.py incompatible con build isolation en Python 3.13)
+RUN pip install --no-cache-dir --no-build-isolation openai-whisper==20240930 || \
+    pip install --no-cache-dir --no-build-isolation openai-whisper
 
 # Instalar Chromium para Playwright
 RUN playwright install chromium
