@@ -44,6 +44,16 @@ export interface PreguntasResponse {
   total_preguntas: number
 }
 
+export interface OpcionProveedor {
+  tienda: string
+  precio_base: number
+  precio_con_margen: number
+  margen_aplicado: number
+  disponible: boolean
+  url: string | null
+  es_propio: boolean
+}
+
 export interface CotizacionItem {
   id: number
   producto_nombre: string
@@ -53,6 +63,9 @@ export interface CotizacionItem {
   margen_aplicado: string
   subtotal: string
   disponible: boolean
+  es_propio: boolean
+  seleccionado: boolean
+  opciones_proveedores: OpcionProveedor[]
 }
 
 export interface Cotizacion {

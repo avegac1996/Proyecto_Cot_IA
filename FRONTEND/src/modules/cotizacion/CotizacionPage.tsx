@@ -4,12 +4,15 @@ import { AlertCircle, Download, FileText, FileSpreadsheet, Loader2 } from 'lucid
 import { useCotizacionStore } from '@/shared/store/cotizacionStore'
 import CotizacionTable from './components/CotizacionTable'
 import {
+  agregarItemCarrito,
   descargarExcel,
   descargarPDF,
   extractCotizacionError,
+  finalizarCotizacion,
   generarCotizacion,
   getCotizacion,
   isAmbiguitiesPending,
+  seleccionarProveedor,
 } from './services/cotizacionService'
 
 export default function CotizacionPage() {
@@ -17,6 +20,7 @@ export default function CotizacionPage() {
   const { sessionId, cotizacion, setCotizacion } = useCotizacionStore()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [selectingId, setSelectingId] = useState<number | null>(null)
 
   useEffect(() => {
     if (!sessionId || cotizacion) return
@@ -44,6 +48,41 @@ export default function CotizacionPage() {
       setError(extractCotizacionError(err))
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const handleSeleccionar = async (itemId: number, tienda: string) => {
+    setSelectingId(itemId)
+    setError(null)
+    try {
+      const data = await seleccionarProveedor(itemId, tienda)
+      setCotizacion(data)
+    } catch (err) {
+      setError(extractCotizacionError(err))
+    } finally {
+      setSelectingId(null)
+    }
+  }
+
+  const handleAgregar = async (texto: string) => {
+    if (!cotizacion) return
+    setError(null)
+    try {
+      const data = await agregarItemCarrito(cotizacion.cotizacion_id, texto)
+      setCotizacion(data)
+    } catch (err) {
+      setError(extractCotizacionError(err))
+    }
+  }
+
+  const handleFinalizar = async () => {
+    if (!cotizacion) return
+    setError(null)
+    try {
+      const data = await finalizarCotizacion(cotizacion.cotizacion_id)
+      setCotizacion(data)
+    } catch (err) {
+      setError(extractCotizacionError(err))
     }
   }
 
@@ -127,7 +166,7 @@ export default function CotizacionPage() {
               Cotización #{cotizacion.cotizacion_id}
             </h2>
             <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
-              {new Date(cotizacion.fecha_creacion).toLocaleString()} · {cotizacion.items.length} ítem(s)
+              {new Date(cotizacion.fecha_creacion).toLocaleString()} · {cotizacion.items.length} ítem(s) · {cotizacion.estado}
             </p>
           </div>
         </div>
@@ -155,11 +194,23 @@ export default function CotizacionPage() {
         </div>
       </div>
 
-      <CotizacionTable cotizacion={cotizacion} />
+      {error && (
+        <div
+          className="flex items-center gap-2 rounded-lg border p-3 text-sm"
+          style={{ borderColor: 'var(--color-danger)', color: 'var(--color-danger)' }}
+        >
+          <AlertCircle className="w-4 h-4 flex-shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
 
-      <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
-        Los ítems "Sin datos" no tienen precios disponibles en las tiendas consultadas.
-      </p>
+      <CotizacionTable
+        cotizacion={cotizacion}
+        onSelectProveedor={handleSeleccionar}
+        onAgregarItem={handleAgregar}
+        onFinalizar={handleFinalizar}
+        selectingId={selectingId}
+      />
     </div>
   )
 }

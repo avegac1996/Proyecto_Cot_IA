@@ -11,6 +11,21 @@ export async function getCotizacion(sessionId: string): Promise<Cotizacion> {
   return data
 }
 
+export async function seleccionarProveedor(itemId: number, tienda: string): Promise<Cotizacion> {
+  const { data } = await api.put<Cotizacion>(`/cotizacion/item/${itemId}/seleccionar`, { tienda })
+  return data
+}
+
+export async function agregarItemCarrito(cotizacionId: number, texto: string): Promise<Cotizacion> {
+  const { data } = await api.post<Cotizacion>(`/cotizacion/${cotizacionId}/agregar`, { texto })
+  return data
+}
+
+export async function finalizarCotizacion(cotizacionId: number): Promise<Cotizacion> {
+  const { data } = await api.post<Cotizacion>(`/cotizacion/${cotizacionId}/finalizar`)
+  return data
+}
+
 export async function descargarPDF(cotizacionId: number): Promise<void> {
   const response = await api.get(`/cotizacion/${cotizacionId}/pdf`, {
     responseType: 'blob',

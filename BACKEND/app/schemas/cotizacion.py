@@ -5,6 +5,16 @@ from uuid import UUID
 from pydantic import BaseModel
 
 
+class OpcionProveedor(BaseModel):
+    tienda: str
+    precio_base: float
+    precio_con_margen: float
+    margen_aplicado: float
+    disponible: bool
+    url: str | None = None
+    es_propio: bool = False
+
+
 class CotizacionItemResponse(BaseModel):
     id: int
     producto_nombre: str
@@ -14,6 +24,9 @@ class CotizacionItemResponse(BaseModel):
     margen_aplicado: Decimal
     subtotal: Decimal
     disponible: bool
+    es_propio: bool = False
+    seleccionado: bool = True
+    opciones_proveedores: list[OpcionProveedor] = []
 
     model_config = {"from_attributes": True}
 

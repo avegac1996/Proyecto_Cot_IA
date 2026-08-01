@@ -3,7 +3,7 @@ from datetime import datetime
 from decimal import Decimal
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, Numeric, String, func
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -39,5 +39,8 @@ class CotizacionItem(Base):
     margen_aplicado: Mapped[Decimal] = mapped_column(Numeric(5, 2), default=0, nullable=False)
     subtotal: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False, default=0)
     disponible: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    es_propio: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    seleccionado: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    opciones_proveedores: Mapped[list | None] = mapped_column(JSONB, nullable=True, default=list)
 
     cotizacion: Mapped["Cotizacion"] = relationship(back_populates="items")
