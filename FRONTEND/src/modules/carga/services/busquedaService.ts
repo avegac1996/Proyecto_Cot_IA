@@ -1,9 +1,20 @@
 import api from '@/shared/lib/api'
-import type { BusquedaResponse, ConfiguracionNegocio, ItemCarrito, Cotizacion } from '@/shared/types'
+import type { BusquedaResponse, ConfiguracionNegocio, ItemCarrito, Cotizacion, OpcionProducto } from '@/shared/types'
 
 export async function buscarComponentes(texto: string): Promise<BusquedaResponse> {
   const { data } = await api.post<BusquedaResponse>('/buscar', { texto })
   return data
+}
+
+export async function buscarAlternativas(
+  nombreProducto: string,
+  tiendaExcluir: string
+): Promise<OpcionProducto[]> {
+  const { data } = await api.post<{ alternativas: OpcionProducto[] }>('/buscar/alternativas', {
+    nombre_producto: nombreProducto,
+    tienda_excluir: tiendaExcluir,
+  })
+  return data.alternativas
 }
 
 export async function getConfiguracion(): Promise<ConfiguracionNegocio> {

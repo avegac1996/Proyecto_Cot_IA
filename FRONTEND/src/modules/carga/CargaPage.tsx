@@ -15,7 +15,6 @@ export default function CargaPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [resultados, setResultados] = useState<ResultadoComponente[]>([])
-  const [selecciones, setSelecciones] = useState<Record<string, OpcionProducto[]>>({})
   const [carrito, setCarrito] = useState<ItemCarrito[]>([])
   const [metodoActivo, setMetodoActivo] = useState<'texto' | 'voz' | 'imagen' | 'archivo'>('texto')
   const resultadosRef = useRef<HTMLDivElement>(null)
@@ -50,32 +49,25 @@ export default function CargaPage() {
     setMensaje((prev) => (prev ? prev + ' ' + text : text))
   }
 
-  const handleToggleSeleccion = (termino: string, _cantidad: number, opcion: OpcionProducto) => {
-    setSelecciones((prev) => {
-      const current = prev[termino] || []
-      const exists = current.some(
-        (s) => s.tienda === opcion.tienda && s.nombre_producto === opcion.nombre_producto
+  const handleToggleSeleccion = (termino: string, cantidad: number, opcion: OpcionProducto) => {
+    const itemKey = `${termino} - ${opcion.tienda}`
+    setCarrito((prev) => {
+      const exists = prev.some(
+        (item) =>
+          item.termino === itemKey &&
+          item.opcion_seleccionada.tienda === opcion.tienda &&
+          item.opcion_seleccionada.nombre_producto === opcion.nombre_producto
       )
       if (exists) {
-        return { ...prev, [termino]: current.filter((s) => !(s.tienda === opcion.tienda && s.nombre_producto === opcion.nombre_producto)) }
+        return prev.filter(
+          (item) =>
+            !(item.termino === itemKey &&
+              item.opcion_seleccionada.tienda === opcion.tienda &&
+              item.opcion_seleccionada.nombre_producto === opcion.nombre_producto)
+        )
       }
-      return { ...prev, [termino]: [...current, opcion] }
+      return [...prev, { termino: itemKey, cantidad, opcion_seleccionada: opcion }]
     })
-  }
-
-  const handleAgregarSeleccionadas = (termino: string, cantidad: number) => {
-    const seleccionadas = selecciones[termino] || []
-    if (seleccionadas.length === 0) return
-    setCarrito((prev) => {
-      const filtered = prev.filter((item) => item.termino !== termino)
-      const newItems = seleccionadas.map((op) => ({
-        termino: `${termino} - ${op.tienda}`,
-        cantidad,
-        opcion_seleccionada: op,
-      }))
-      return [...filtered, ...newItems]
-    })
-    setSelecciones((prev) => ({ ...prev, [termino]: [] }))
   }
 
   const handleQuitarCarrito = (index: number) => {
@@ -299,20 +291,11 @@ export default function CargaPage() {
                   <TarjetaProducto
                     resultado={resultado}
                     onToggleSeleccion={handleToggleSeleccion}
-                    seleccionadas={selecciones[resultado.termino] || []}
+                    seleccionadas={carrito
+                      .filter((item) => item.termino.startsWith(`${resultado.termino} - `))
+                      .map((item) => item.opcion_seleccionada)}
                     onBuscarSugerencia={handleBuscarSugerencia}
                   />
-                  {(selecciones[resultado.termino] || []).length > 0 && (
-                    <button
-                      onClick={() =>
-                        handleAgregarSeleccionadas(resultado.termino, resultado.cantidad)
-                      }
-                      className="w-full py-2 rounded-lg font-medium text-white text-xs transition-colors flex items-center justify-center gap-1"
-                      style={{ backgroundColor: 'var(--color-primary)' }}
-                    >
-                      Agregar {(selecciones[resultado.termino] || []).length} al carrito
-                    </button>
-                  )}
                 </div>
               ))}
               </div>

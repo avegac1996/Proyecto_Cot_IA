@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { Store, Check, X, BadgeCheck, Lightbulb, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react'
+import { Store, Check, X, BadgeCheck, Lightbulb, AlertTriangle, ChevronDown, ChevronUp, Loader2 } from 'lucide-react'
 import type { ResultadoComponente, OpcionProducto } from '@/shared/types'
+import { buscarAlternativas } from '../services/busquedaService'
 
 interface Props {
   resultado: ResultadoComponente
@@ -17,6 +18,8 @@ function money(value: number | null): string {
 export default function TarjetaProducto({ resultado, onToggleSeleccion, seleccionadas, onBuscarSugerencia }: Props) {
   const { termino, cantidad, opciones, encontrado_propia, sugerencia } = resultado
   const [agotadoExpandido, setAgotadoExpandido] = useState<string | null>(null)
+  const [alternativasRemotas, setAlternativasRemotas] = useState<Record<string, OpcionProducto[]>>({})
+  const [cargandoAlternativas, setCargandoAlternativas] = useState<string | null>(null)
 
   const isSelected = (op: OpcionProducto) =>
     seleccionadas.some((s) => s.tienda === op.tienda && s.nombre_producto === op.nombre_producto)
@@ -25,9 +28,23 @@ export default function TarjetaProducto({ resultado, onToggleSeleccion, seleccio
 
   const handleClickOpcion = (op: OpcionProducto) => {
     if (!op.disponible) {
-      // Toggle expandir/colapsar alternativas
       const key = `${op.tienda}-${op.nombre_producto}`
-      setAgotadoExpandido((prev) => (prev === key ? null : key))
+      setAgotadoExpandido((prev) => {
+        if (prev === key) return null
+        // Cargar alternativas remotas si no tenemos cache local
+        if (!alternativasRemotas[key] && !cargandoAlternativas) {
+          setCargandoAlternativas(key)
+          buscarAlternativas(op.nombre_producto, op.tienda)
+            .then((alts) => {
+              setAlternativasRemotas((prev) => ({ ...prev, [key]: alts }))
+            })
+            .catch(() => {
+              setAlternativasRemotas((prev) => ({ ...prev, [key]: [] }))
+            })
+            .finally(() => setCargandoAlternativas(null))
+        }
+        return key
+      })
       return
     }
     onToggleSeleccion(termino, cantidad, op)
@@ -103,7 +120,15 @@ export default function TarjetaProducto({ resultado, onToggleSeleccion, seleccio
             const selected = isSelected(op)
             const key = `${op.tienda}-${op.nombre_producto}`
             const isExpanded = agotadoExpandido === key
-            const alternativas = opcionesDisponibles.filter((o) => o.tienda !== op.tienda)
+            const alternativasLocales = opcionesDisponibles.filter((o) => o.tienda !== op.tienda)
+            const altsRemotas = alternativasRemotas[key] || []
+            const alternativas = [...alternativasLocales]
+            for (const alt of altsRemotas) {
+              if (!alternativas.some((a) => a.tienda === alt.tienda && a.nombre_producto === alt.nombre_producto)) {
+                alternativas.push(alt)
+              }
+            }
+            const estaCargando = cargandoAlternativas === key
 
             return (
               <div key={key}>
@@ -162,8 +187,8 @@ export default function TarjetaProducto({ resultado, onToggleSeleccion, seleccio
                           >
                             <AlertTriangle className="w-3 h-3" />
                             Agotado
-                            <span style={{ color: alternativas.length > 0 ? '#065F46' : 'var(--color-text-muted)' }} className="flex items-center gap-0.5">
-                              {alternativas.length > 0 ? '· ver alternativas' : '· sin alternativas'}
+                            <span style={{ color: '#065F46' }} className="flex items-center gap-0.5">
+                              · ver alternativas
                               {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
                             </span>
                           </span>
@@ -195,10 +220,15 @@ export default function TarjetaProducto({ resultado, onToggleSeleccion, seleccio
                     className="px-4 py-3 space-y-2"
                     style={{ backgroundColor: 'var(--color-bg)' }}
                   >
-                    {alternativas.length > 0 ? (
+                    {estaCargando ? (
+                      <div className="flex items-center gap-2 py-3 justify-center" style={{ color: 'var(--color-text-muted)' }}>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span className="text-xs">Buscando alternativas...</span>
+                      </div>
+                    ) : alternativas.length > 0 ? (
                       <>
                         <p className="text-xs font-medium" style={{ color: 'var(--color-text)' }}>
-                          Disponible en otras tiendas:
+                          Productos similares en otras tiendas:
                         </p>
                         {alternativas.map((alt, altIdx) => {
                           const altSelected = isSelected(alt)
@@ -256,7 +286,7 @@ export default function TarjetaProducto({ resultado, onToggleSeleccion, seleccio
                       </>
                     ) : (
                       <p className="text-xs text-center py-2" style={{ color: 'var(--color-text-muted)' }}>
-                        No hay alternativas disponibles en otras tiendas
+                        No se encontraron productos similares en otras tiendas
                       </p>
                     )}
                   </div>
