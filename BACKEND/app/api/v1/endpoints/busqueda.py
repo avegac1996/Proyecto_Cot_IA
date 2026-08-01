@@ -26,11 +26,17 @@ class OpcionProducto(BaseModel):
     es_propio: bool
 
 
+class SugerenciaResponse(BaseModel):
+    sugerencia: str
+    razon: str
+
+
 class ResultadoComponente(BaseModel):
     termino: str
     cantidad: int
     encontrado_propia: bool
     opciones: list[OpcionProducto]
+    sugerencia: SugerenciaResponse | None = None
 
 
 class BusquedaResponse(BaseModel):

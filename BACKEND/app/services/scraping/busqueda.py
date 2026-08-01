@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services.configuracion import obtener_margen, obtener_tienda_propia
 from app.services.scraping.engine import buscar_por_termino
+from app.services.scraping.sugerencias import sugerir_termino
 
 logger = logging.getLogger(__name__)
 
@@ -18,14 +19,7 @@ async def buscar_por_termino_priorizado(
     1. Busca en todas las tiendas activas.
     2. Si AV Electronics tiene resultados → opciones propias (sin margen).
     3. Otras tiendas → opciones con margen aplicado.
-    4. Retorna estructura completa para el frontend.
-
-    Returns:
-        dict con keys:
-            termino (str), cantidad (int),
-            encontrado_propia (bool),
-            opciones (list[dict] con tienda, nombre_producto, precio_base,
-                       precio_con_margen, margen_aplicado, disponible, url, es_propio)
+    4. Si no hay resultados, genera una sugerencia de término alternativo.
     """
     margen_pct = await obtener_margen(db)
     tienda_propia = await obtener_tienda_propia(db)
@@ -68,9 +62,17 @@ async def buscar_por_termino_priorizado(
     opciones_propias.sort(key=lambda o: o["precio_con_margen"])
     opciones_externas.sort(key=lambda o: o["precio_con_margen"])
 
+    todas_opciones = opciones_propias + opciones_externas
+
+    # Si no hay resultados, generar sugerencia
+    sugerencia = None
+    if not todas_opciones:
+        sugerencia = sugerir_termino(termino)
+
     return {
         "termino": termino,
         "cantidad": cantidad,
         "encontrado_propia": len(opciones_propias) > 0,
-        "opciones": opciones_propias + opciones_externas,
+        "opciones": todas_opciones,
+        "sugerencia": sugerencia,
     }

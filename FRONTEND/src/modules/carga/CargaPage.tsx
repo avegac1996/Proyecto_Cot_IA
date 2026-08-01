@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Search, Loader2, AlertCircle, Sparkles, Info, Send, Mic, Image as ImageIcon, FileText } from 'lucide-react'
-import { buscarComponentes } from './services/busquedaService'
+import { buscarComponentes, crearCotizacionDesdeCarrito } from './services/busquedaService'
 import { extractUploadError, uploadFile } from './services/uploadService'
 import { useCotizacionStore } from '@/shared/store/cotizacionStore'
 import TarjetaProducto from './components/TarjetaProducto'
@@ -20,7 +20,7 @@ export default function CargaPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [resultados, setResultados] = useState<ResultadoComponente[]>([])
-  const [selecciones, setSelecciones] = useState<Record<string, OpcionProducto | null>>({})
+  const [selecciones, setSelecciones] = useState<Record<string, OpcionProducto[]>>({})
   const [carrito, setCarrito] = useState<ItemCarrito[]>([])
   const [file, setFile] = useState<File | null>(null)
   const resultadosRef = useRef<HTMLDivElement>(null)
@@ -51,20 +51,45 @@ export default function CargaPage() {
     setMensaje((prev) => (prev ? prev + ' ' + text : text))
   }
 
-  const handleSeleccionar = (termino: string, _cantidad: number, opcion: OpcionProducto) => {
-    setSelecciones((prev) => ({ ...prev, [termino]: opcion }))
+  const handleToggleSeleccion = (termino: string, _cantidad: number, opcion: OpcionProducto) => {
+    setSelecciones((prev) => {
+      const current = prev[termino] || []
+      const exists = current.some(
+        (s) => s.tienda === opcion.tienda && s.nombre_producto === opcion.nombre_producto
+      )
+      if (exists) {
+        return { ...prev, [termino]: current.filter((s) => !(s.tienda === opcion.tienda && s.nombre_producto === opcion.nombre_producto)) }
+      }
+      return { ...prev, [termino]: [...current, opcion] }
+    })
   }
 
-  const handleAgregarAlCarrito = (termino: string, cantidad: number, opcion: OpcionProducto) => {
+  const handleAgregarSeleccionadas = (termino: string, cantidad: number) => {
+    const seleccionadas = selecciones[termino] || []
+    if (seleccionadas.length === 0) return
     setCarrito((prev) => {
       const filtered = prev.filter((item) => item.termino !== termino)
-      return [...filtered, { termino, cantidad, opcion_seleccionada: opcion }]
+      const newItems = seleccionadas.map((op) => ({
+        termino: `${termino} - ${op.tienda}`,
+        cantidad,
+        opcion_seleccionada: op,
+      }))
+      return [...filtered, ...newItems]
     })
-    setSelecciones((prev) => ({ ...prev, [termino]: null }))
+    setSelecciones((prev) => ({ ...prev, [termino]: [] }))
   }
 
   const handleQuitarCarrito = (index: number) => {
     setCarrito((prev) => prev.filter((_, i) => i !== index))
+  }
+
+  const handleCambiarCantidad = (index: number, cantidad: number) => {
+    setCarrito((prev) => prev.map((item, i) => (i === index ? { ...item, cantidad } : item)))
+  }
+
+  const handleBuscarSugerencia = (sugerencia: string) => {
+    setMensaje(sugerencia)
+    handleBuscar()
   }
 
   const handleFinalizar = async () => {
@@ -72,17 +97,11 @@ export default function CargaPage() {
     setIsLoading(true)
     setError(null)
     try {
-      const lineas = carrito.map(
-        (item) => `${item.cantidad} ${item.opcion_seleccionada.nombre_producto}`
-      )
-      const contenido = lineas.join('\n')
-      const data = await uploadFile(
-        new File([contenido], 'carrito.txt', { type: 'text/plain' })
-      )
-      setSesion(data.session_id, data.componentes)
-      navigate('/cotizacion')
+      const cotizacion = await crearCotizacionDesdeCarrito(carrito)
+      navigate('/cotizacion', { state: { cotizacionId: cotizacion.cotizacion_id } })
     } catch (err) {
-      setError(extractUploadError(err))
+      const e = err as { response?: { data?: { detail?: { message?: string } } }; message?: string }
+      setError(e.response?.data?.detail?.message || e.message || 'Error al crear cotización')
     } finally {
       setIsLoading(false)
     }
@@ -221,22 +240,19 @@ export default function CargaPage() {
                 <div key={`${resultado.termino}-${idx}`} className="space-y-2">
                   <TarjetaProducto
                     resultado={resultado}
-                    onSeleccionar={handleSeleccionar}
-                    seleccionada={selecciones[resultado.termino] ?? null}
+                    onToggleSeleccion={handleToggleSeleccion}
+                    seleccionadas={selecciones[resultado.termino] || []}
+                    onBuscarSugerencia={handleBuscarSugerencia}
                   />
-                  {selecciones[resultado.termino] && (
+                  {(selecciones[resultado.termino] || []).length > 0 && (
                     <button
                       onClick={() =>
-                        handleAgregarAlCarrito(
-                          resultado.termino,
-                          resultado.cantidad,
-                          selecciones[resultado.termino]!
-                        )
+                        handleAgregarSeleccionadas(resultado.termino, resultado.cantidad)
                       }
                       className="w-full py-2 rounded-lg font-medium text-white text-xs transition-colors flex items-center justify-center gap-1"
                       style={{ backgroundColor: 'var(--color-primary)' }}
                     >
-                      Agregar al carrito
+                      Agregar {(selecciones[resultado.termino] || []).length} al carrito
                     </button>
                   )}
                 </div>
@@ -334,6 +350,7 @@ export default function CargaPage() {
           <CarritoPreview
             items={carrito}
             onQuitar={handleQuitarCarrito}
+            onCambiarCantidad={handleCambiarCantidad}
             onFinalizar={handleFinalizar}
             disabled={carrito.length === 0 || isLoading}
           />

@@ -1,9 +1,10 @@
-import { ShoppingCart, Trash2, Lock } from 'lucide-react'
+import { ShoppingCart, Trash2, Lock, Minus, Plus } from 'lucide-react'
 import type { ItemCarrito } from '@/shared/types'
 
 interface Props {
   items: ItemCarrito[]
   onQuitar: (index: number) => void
+  onCambiarCantidad: (index: number, cantidad: number) => void
   onFinalizar: () => void
   disabled?: boolean
 }
@@ -13,7 +14,7 @@ function money(value: number | null): string {
   return `$${Number(value).toFixed(2)}`
 }
 
-export default function CarritoPreview({ items, onQuitar, onFinalizar, disabled }: Props) {
+export default function CarritoPreview({ items, onQuitar, onCambiarCantidad, onFinalizar, disabled }: Props) {
   const total = items.reduce((sum, item) => {
     const precio = item.opcion_seleccionada.precio_con_margen ?? 0
     return sum + precio * item.cantidad
@@ -47,10 +48,32 @@ export default function CarritoPreview({ items, onQuitar, onFinalizar, disabled 
                     {item.opcion_seleccionada.nombre_producto}
                   </div>
                   <div className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
-                    {item.opcion_seleccionada.tienda} · x{item.cantidad}
+                    {item.opcion_seleccionada.tienda}
                   </div>
                   <div className="text-xs font-medium" style={{ color: 'var(--color-text)' }}>
                     {money(item.opcion_seleccionada.precio_con_margen)} c/u
+                  </div>
+                  <div className="flex items-center gap-1 mt-1">
+                    <button
+                      onClick={() => onCambiarCantidad(idx, Math.max(1, item.cantidad - 1))}
+                      className="w-6 h-6 rounded flex items-center justify-center transition-colors"
+                      style={{ border: '1px solid var(--color-border)', color: 'var(--color-text)' }}
+                    >
+                      <Minus className="w-3 h-3" />
+                    </button>
+                    <span
+                      className="w-8 text-center text-xs font-bold"
+                      style={{ color: 'var(--color-text)' }}
+                    >
+                      {item.cantidad}
+                    </span>
+                    <button
+                      onClick={() => onCambiarCantidad(idx, item.cantidad + 1)}
+                      className="w-6 h-6 rounded flex items-center justify-center transition-colors"
+                      style={{ border: '1px solid var(--color-border)', color: 'var(--color-text)' }}
+                    >
+                      <Plus className="w-3 h-3" />
+                    </button>
                   </div>
                 </div>
                 <div className="flex flex-col items-end gap-1 flex-shrink-0">

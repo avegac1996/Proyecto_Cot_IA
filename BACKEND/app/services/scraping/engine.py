@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from datetime import datetime, timedelta
 
@@ -12,6 +13,11 @@ from app.services.scraping.scrapers import get_scraper
 logger = logging.getLogger(__name__)
 
 MAX_RESULTADOS_POR_TIENDA = 10
+SCRAPE_TIMEOUT_SECONDS = 15
+
+# Cache en memoria por término (TTL 30 min)
+_cache_termino: dict[str, tuple[datetime, list[dict]]] = {}
+CACHE_TERMINO_TTL = timedelta(minutes=30)
 
 
 async def buscar_precios(db: AsyncSession, producto: Producto) -> list[dict]:
@@ -90,30 +96,51 @@ async def buscar_precios(db: AsyncSession, producto: Producto) -> list[dict]:
     return proveedores
 
 
+async def _scrape_tienda(tienda: Tienda, termino: str) -> list[dict]:
+    """Scrapea una sola tienda con timeout. Retorna lista de resultados."""
+    try:
+        scraper = await get_scraper(
+            tienda.nombre,
+            tienda.url_base,
+            tienda.selectores,
+            tienda.usa_javascript,
+        )
+        results = await asyncio.wait_for(
+            scraper.scrape(termino),
+            timeout=SCRAPE_TIMEOUT_SECONDS,
+        )
+        return results[:MAX_RESULTADOS_POR_TIENDA]
+    except asyncio.TimeoutError:
+        logger.warning("Timeout scrapeando %s para '%s'", tienda.nombre, termino)
+        return []
+    except Exception as exc:
+        logger.warning("Scraping por término falló para %s: %s", tienda.nombre, exc)
+        return []
+
+
 async def buscar_por_termino(db: AsyncSession, termino: str) -> dict:
     """Busca un término libre en todas las tiendas activas.
 
-    A diferencia de buscar_precios, no requiere un Producto en BD.
-    Retorna todas las opciones encontradas por tienda.
+    Usa cache en memoria (30 min TTL) y scraping paralelo con timeout.
     """
+    # Verificar cache en memoria
+    cache_key = termino.lower().strip()
+    if cache_key in _cache_termino:
+        cached_at, cached_opts = _cache_termino[cache_key]
+        if datetime.now() - cached_at < CACHE_TERMINO_TTL:
+            logger.info("Cache hit para término '%s'", termino)
+            return {"termino": termino, "opciones": cached_opts, "fuente": "cache"}
+
     result = await db.execute(select(Tienda).where(Tienda.activa.is_(True)))
     tiendas = result.scalars().all()
 
-    opciones: list[dict] = []
-    for tienda in tiendas:
-        try:
-            scraper = await get_scraper(
-                tienda.nombre,
-                tienda.url_base,
-                tienda.selectores,
-                tienda.usa_javascript,
-            )
-            scraped_results = await scraper.scrape(termino)
-        except Exception as exc:
-            logger.warning("Scraping por término falló para %s: %s", tienda.nombre, exc)
-            scraped_results = []
+    # Scraping paralelo: todas las tiendas al mismo tiempo
+    tasks = [_scrape_tienda(tienda, termino) for tienda in tiendas]
+    resultados_por_tienda = await asyncio.gather(*tasks, return_exceptions=False)
 
-        for item in scraped_results[:MAX_RESULTADOS_POR_TIENDA]:
+    opciones: list[dict] = []
+    for tienda, scraped_results in zip(tiendas, resultados_por_tienda):
+        for item in scraped_results:
             opciones.append({
                 "tienda": tienda.nombre,
                 "nombre_producto": item.get("nombre_producto") or termino,
@@ -122,4 +149,7 @@ async def buscar_por_termino(db: AsyncSession, termino: str) -> dict:
                 "url": item["url"],
             })
 
-    return {"termino": termino, "opciones": opciones}
+    # Guardar en cache
+    _cache_termino[cache_key] = (datetime.now(), opciones)
+
+    return {"termino": termino, "opciones": opciones, "fuente": "web_scraping"}

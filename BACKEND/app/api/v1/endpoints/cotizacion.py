@@ -302,3 +302,92 @@ async def finalizar_cotizacion(
     await db.commit()
     await db.refresh(cotizacion)
     return _to_response(cotizacion)
+
+
+class ItemCarritoRequest(BaseModel):
+    nombre_producto: str
+    cantidad: int
+    tienda: str
+    precio_unitario: float
+    margen_aplicado: float = 0.0
+    disponible: bool = True
+    es_propio: bool = False
+    url: str | None = None
+
+
+class CrearDesdeCarritoRequest(BaseModel):
+    items: list[ItemCarritoRequest]
+    cliente_nombre: str | None = None
+
+
+@router.post("/cotizacion/desde-carrito", response_model=CotizacionResponse, status_code=status.HTTP_201_CREATED)
+async def crear_desde_carrito(
+    body: CrearDesdeCarritoRequest,
+    db: AsyncSession = Depends(get_db),
+    user: Usuario = Depends(get_current_user),
+):
+    """Crea una cotización directamente desde los items del carrito.
+
+    No pasa por upload/preguntas. Los items ya tienen tienda y precio seleccionados.
+    """
+    if not body.items:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"code": "EMPTY_CART", "message": "El carrito está vacío"},
+        )
+
+    import uuid as uuid_mod
+    from decimal import Decimal
+
+    sesion = Sesion(
+        id=uuid_mod.uuid4(),
+        usuario_id=user.id,
+        componentes_json=[],
+    )
+    db.add(sesion)
+    await db.flush()
+
+    cotizacion = Cotizacion(
+        session_id=sesion.id,
+        usuario_id=user.id,
+        cliente_nombre=body.cliente_nombre,
+        estado="pendiente",
+        total=Decimal("0"),
+    )
+    db.add(cotizacion)
+    await db.flush()
+
+    total = Decimal("0")
+    for item_req in body.items:
+        precio = Decimal(str(item_req.precio_unitario)).quantize(Decimal("0.01"))
+        margen = Decimal(str(item_req.margen_aplicado)).quantize(Decimal("0.01"))
+        subtotal = (precio * item_req.cantidad).quantize(Decimal("0.01"))
+        total += subtotal
+
+        item = CotizacionItem(
+            cotizacion_id=cotizacion.id,
+            producto_nombre=item_req.nombre_producto,
+            cantidad=item_req.cantidad,
+            precio_unitario=precio,
+            proveedor=item_req.tienda,
+            margen_aplicado=margen,
+            subtotal=subtotal,
+            disponible=item_req.disponible,
+            es_propio=item_req.es_propio,
+            seleccionado=True,
+            opciones_proveedores=[{
+                "tienda": item_req.tienda,
+                "precio_base": item_req.precio_unitario,
+                "precio_con_margen": item_req.precio_unitario,
+                "margen_aplicado": item_req.margen_aplicado,
+                "disponible": item_req.disponible,
+                "url": item_req.url,
+                "es_propio": item_req.es_propio,
+            }],
+        )
+        db.add(item)
+
+    cotizacion.total = total.quantize(Decimal("0.01"))
+    await db.commit()
+    await db.refresh(cotizacion)
+    return _to_response(cotizacion)

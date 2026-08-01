@@ -101,11 +101,17 @@ export interface OpcionProducto {
   es_propio: boolean
 }
 
+export interface Sugerencia {
+  sugerencia: string
+  razon: string
+}
+
 export interface ResultadoComponente {
   termino: string
   cantidad: number
   encontrado_propia: boolean
   opciones: OpcionProducto[]
+  sugerencia: Sugerencia | null
 }
 
 export interface BusquedaResponse {
