@@ -66,7 +66,7 @@ def generate_pdf(cotizacion: Cotizacion) -> bytes:
     elements = []
 
     # Header
-    elements.append(Paragraph("CotIA — Cotización de Componentes Electrónicos", title_style))
+    elements.append(Paragraph("AV Electronics — Cotización de Componentes Electrónicos", title_style))
     fecha_str = cotizacion.fecha_creacion.strftime("%d/%m/%Y %H:%M") if cotizacion.fecha_creacion else ""
     elements.append(Paragraph(f"Cotización #{cotizacion.id} · {fecha_str}", subtitle_style))
 
@@ -142,7 +142,7 @@ def generate_pdf(cotizacion: Cotizacion) -> bytes:
         alignment=1,
     )
     elements.append(Paragraph(
-        f"Generado por CotIA · {datetime.now().strftime('%d/%m/%Y %H:%M')}",
+        f"Generado por AV Electronics · {datetime.now().strftime('%d/%m/%Y %H:%M')}",
         footer_style,
     ))
 
@@ -173,7 +173,7 @@ def generate_excel(cotizacion: Cotizacion) -> bytes:
 
     # Title
     ws.merge_cells("A1:F1")
-    ws["A1"] = "CotIA — Cotización de Componentes Electrónicos"
+    ws["A1"] = "AV Electronics — Cotización de Componentes Electrónicos"
     ws["A1"].font = title_font
     ws["A1"].alignment = Alignment(horizontal="center")
 

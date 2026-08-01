@@ -34,12 +34,13 @@ export default function LoginPage() {
         <div className="rounded-2xl shadow-xl border p-8" style={{ borderColor: 'var(--color-border)' }}>
           {/* Header */}
           <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full mb-4"
-              style={{ backgroundColor: 'var(--color-primary)' }}>
-              <Lock className="w-8 h-8 text-white" />
-            </div>
+            <img
+              src="/logo.png"
+              alt="AV Electronics"
+              className="h-20 w-auto object-contain mx-auto mb-4"
+            />
             <h1 className="text-2xl font-bold" style={{ color: 'var(--color-text)' }}>
-              CotIA
+              AV Electronics
             </h1>
             <p className="text-sm mt-1" style={{ color: 'var(--color-text-muted)' }}>
               Sistema Inteligente de Cotización

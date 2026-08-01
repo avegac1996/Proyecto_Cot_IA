@@ -5,7 +5,6 @@ import {
   FileText,
   History,
   Users,
-  Zap,
 } from 'lucide-react'
 import { useAuthStore } from '@/shared/store/authStore'
 import ThemeToggle from './ThemeToggle'
@@ -31,15 +30,11 @@ export default function Header() {
     >
       <div className="max-w-7xl mx-auto px-4 flex items-center gap-4 h-16">
         <NavLink to="/carga" className="flex items-center gap-2 shrink-0">
-          <div
-            className="w-9 h-9 rounded-lg flex items-center justify-center"
-            style={{ backgroundColor: 'var(--color-primary)' }}
-          >
-            <Zap className="w-5 h-5 text-white" />
-          </div>
-          <span className="text-lg font-bold hidden md:block" style={{ color: 'var(--color-text)' }}>
-            CotIA
-          </span>
+          <img
+            src="/logo.png"
+            alt="AV Electronics"
+            className="h-10 w-auto object-contain"
+          />
         </NavLink>
 
         <nav className="flex-1 flex items-center gap-1 overflow-x-auto">

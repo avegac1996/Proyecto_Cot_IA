@@ -8,7 +8,7 @@ export default function Footer() {
         className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs"
         style={{ color: 'var(--color-text-muted)' }}
       >
-        <p>CotIA — Sistema Inteligente de Cotización de Componentes Electrónicos</p>
+        <p>AV Electronics — Sistema Inteligente de Cotización de Componentes Electrónicos</p>
         <p>v1.0.0 · © 2026</p>
       </div>
     </footer>
