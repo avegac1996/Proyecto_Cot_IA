@@ -142,7 +142,7 @@ export default function CargaPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Columna principal */}
-        <div className="lg:col-span-2 space-y-4">
+        <div className="lg:col-span-2 space-y-4 order-1">
           {/* Selector de método de entrada */}
           <div className="flex gap-2">
             {metodos.map((metodo) => {
@@ -343,7 +343,8 @@ export default function CargaPage() {
         </div>
 
         {/* Columna lateral: carrito */}
-        <div className="lg:col-span-1">
+        <div className="lg:col-span-1 order-2">
+          <div className="lg:sticky lg:top-4">
           <CarritoPreview
             items={carrito}
             onQuitar={handleQuitarCarrito}
@@ -351,6 +352,7 @@ export default function CargaPage() {
             onFinalizar={handleFinalizar}
             disabled={carrito.length === 0 || isLoading}
           />
+          </div>
         </div>
       </div>
     </div>
