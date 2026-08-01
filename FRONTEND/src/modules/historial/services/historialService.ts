@@ -38,6 +38,16 @@ export async function descargarPDF(cotizacionId: number): Promise<void> {
   window.URL.revokeObjectURL(url)
 }
 
+export async function finalizarCotizacion(cotizacionId: number): Promise<Cotizacion> {
+  const { data } = await api.post<Cotizacion>(`/cotizacion/${cotizacionId}/finalizar`)
+  return data
+}
+
+export async function agregarItem(cotizacionId: number, texto: string): Promise<Cotizacion> {
+  const { data } = await api.post<Cotizacion>(`/cotizacion/${cotizacionId}/agregar`, { texto })
+  return data
+}
+
 export function extractHistorialError(error: unknown): string {
   const err = error as { response?: { data?: { detail?: { message?: string } } } }
   return err.response?.data?.detail?.message || 'Error al cargar el historial'

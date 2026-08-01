@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useLocation } from 'react-router-dom'
-import { AlertCircle, Eye, History, Loader2, Trash2, Download, X, FileText } from 'lucide-react'
+import { AlertCircle, Eye, History, Loader2, Trash2, Download, X, FileText, Lock, Plus } from 'lucide-react'
 import type { CotizacionListItem, Cotizacion } from '@/shared/types'
 import {
   extractHistorialError,
@@ -8,6 +8,8 @@ import {
   getCotizacionById,
   eliminarCotizacion,
   descargarPDF,
+  finalizarCotizacion,
+  agregarItem,
 } from './services/historialService'
 
 const ESTADO_STYLE: Record<string, { bg: string; color: string }> = {
@@ -30,6 +32,9 @@ export default function HistorialPage() {
   const [isLoadingDetalle, setIsLoadingDetalle] = useState(false)
   const [eliminandoId, setEliminandoId] = useState<number | null>(null)
   const [highlightId, setHighlightId] = useState<number | null>(null)
+  const [nuevoItemTexto, setNuevoItemTexto] = useState('')
+  const [agregandoItem, setAgregandoItem] = useState(false)
+  const [finalizando, setFinalizando] = useState(false)
 
   const cargarHistorial = useCallback(() => {
     setIsLoading(true)
@@ -53,6 +58,7 @@ export default function HistorialPage() {
 
   const handleVer = async (cotizacionId: number) => {
     setIsLoadingDetalle(true)
+    setError(null)
     try {
       const data = await getCotizacionById(cotizacionId)
       setCotizacionDetalle(data)
@@ -60,6 +66,48 @@ export default function HistorialPage() {
       setError('Error al cargar el detalle de la cotización')
     } finally {
       setIsLoadingDetalle(false)
+    }
+  }
+
+  const handleFinalizar = async () => {
+    if (!cotizacionDetalle) return
+    if (!confirm('¿Finalizar cotización? No podrá agregar más productos ni cambiar proveedores.')) return
+    setFinalizando(true)
+    try {
+      const data = await finalizarCotizacion(cotizacionDetalle.cotizacion_id)
+      setCotizacionDetalle(data)
+      setCotizaciones((prev) =>
+        prev.map((c) =>
+          c.cotizacion_id === data.cotizacion_id ? { ...c, estado: data.estado } : c
+        )
+      )
+    } catch {
+      setError('Error al finalizar la cotización')
+    } finally {
+      setFinalizando(false)
+    }
+  }
+
+  const handleAgregarItem = async () => {
+    if (!cotizacionDetalle || !nuevoItemTexto.trim()) return
+    setAgregandoItem(true)
+    setError(null)
+    try {
+      const data = await agregarItem(cotizacionDetalle.cotizacion_id, nuevoItemTexto.trim())
+      setCotizacionDetalle(data)
+      setNuevoItemTexto('')
+      setCotizaciones((prev) =>
+        prev.map((c) =>
+          c.cotizacion_id === data.cotizacion_id
+            ? { ...c, total: data.total, total_items: data.items.length }
+            : c
+        )
+      )
+    } catch (err) {
+      const e = err as { response?: { data?: { detail?: { message?: string } } } }
+      setError(e.response?.data?.detail?.message || 'Error al agregar producto')
+    } finally {
+      setAgregandoItem(false)
     }
   }
 
@@ -252,6 +300,17 @@ export default function HistorialPage() {
                 </h3>
               </div>
               <div className="flex items-center gap-2">
+                {cotizacionDetalle.estado !== 'finalizada' && (
+                  <button
+                    onClick={handleFinalizar}
+                    disabled={finalizando}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-white disabled:opacity-60"
+                    style={{ backgroundColor: '#16a34a' }}
+                  >
+                    {finalizando ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Lock className="w-3.5 h-3.5" />}
+                    Finalizar
+                  </button>
+                )}
                 <button
                   onClick={() => handlePDF(cotizacionDetalle.cotizacion_id)}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-white"
@@ -271,11 +330,26 @@ export default function HistorialPage() {
             </div>
 
             <div className="px-5 py-4">
-              <div className="text-xs mb-4" style={{ color: 'var(--color-text-muted)' }}>
+              <div className="text-xs mb-4 flex items-center gap-2" style={{ color: 'var(--color-text-muted)' }}>
                 {new Date(cotizacionDetalle.fecha_creacion).toLocaleString()} ·{' '}
                 {cotizacionDetalle.items.length} ítem(s) ·{' '}
-                <span className="capitalize">{cotizacionDetalle.estado}</span>
+                <span
+                  className="inline-block px-2 py-0.5 rounded text-xs font-medium capitalize"
+                  style={ESTADO_STYLE[cotizacionDetalle.estado] ?? ESTADO_STYLE.pendiente}
+                >
+                  {cotizacionDetalle.estado}
+                </span>
               </div>
+
+              {cotizacionDetalle.estado === 'finalizada' && (
+                <div
+                  className="flex items-center gap-2 rounded-lg border p-3 mb-4 text-sm"
+                  style={{ borderColor: '#D1FAE5', backgroundColor: '#F0FDF4', color: '#065F46' }}
+                >
+                  <Lock className="w-4 h-4 flex-shrink-0" />
+                  <span>Cotización finalizada. No se pueden agregar más productos ni cambiar proveedores.</span>
+                </div>
+              )}
 
               <table className="w-full text-sm">
                 <thead>
@@ -327,6 +401,38 @@ export default function HistorialPage() {
                   </tr>
                 </tfoot>
               </table>
+
+              {cotizacionDetalle.estado !== 'finalizada' && (
+                <div className="mt-4 pt-4 border-t" style={{ borderColor: 'var(--color-border)' }}>
+                  <label className="block text-sm font-medium mb-2" style={{ color: 'var(--color-text)' }}>
+                    Agregar producto
+                  </label>
+                  <p className="text-xs mb-2" style={{ color: 'var(--color-text-muted)' }}>
+                    Escribe el nombre y cantidad del producto. Ej: "5 Arduino Uno R3"
+                  </p>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={nuevoItemTexto}
+                      onChange={(e) => setNuevoItemTexto(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter' && nuevoItemTexto.trim()) handleAgregarItem() }}
+                      placeholder="Ej: 3 Sensor HC-SR04"
+                      disabled={agregandoItem}
+                      className="flex-1 px-3 py-2 rounded-lg border outline-none text-sm"
+                      style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-bg)', color: 'var(--color-text)' }}
+                    />
+                    <button
+                      onClick={handleAgregarItem}
+                      disabled={agregandoItem || !nuevoItemTexto.trim()}
+                      className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-white text-sm font-medium disabled:opacity-60"
+                      style={{ backgroundColor: 'var(--color-primary)' }}
+                    >
+                      {agregandoItem ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                      Agregar
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
