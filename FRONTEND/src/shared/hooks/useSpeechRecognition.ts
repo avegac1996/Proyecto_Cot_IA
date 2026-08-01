@@ -31,11 +31,17 @@ declare global {
   }
 }
 
-export function useSpeechRecognition() {
+export function useSpeechRecognition(onEnd?: (finalTranscript: string) => void) {
   const [isListening, setIsListening] = useState(false)
   const [transcript, setTranscript] = useState('')
   const [error, setError] = useState<string | null>(null)
   const recognitionRef = useRef<SpeechRecognitionType | null>(null)
+  const onEndRef = useRef(onEnd)
+  const transcriptRef = useRef('')
+
+  useEffect(() => {
+    onEndRef.current = onEnd
+  }, [onEnd])
 
   const isSupported =
     typeof window !== 'undefined' &&
@@ -55,6 +61,7 @@ export function useSpeechRecognition() {
       for (let i = event.resultIndex; i < event.results.length; i++) {
         text += event.results[i][0].transcript
       }
+      transcriptRef.current = text
       setTranscript(text)
     }
 
@@ -72,6 +79,9 @@ export function useSpeechRecognition() {
 
     recognition.onend = () => {
       setIsListening(false)
+      if (transcriptRef.current && onEndRef.current) {
+        onEndRef.current(transcriptRef.current)
+      }
     }
 
     recognitionRef.current = recognition
@@ -85,6 +95,7 @@ export function useSpeechRecognition() {
     if (!recognitionRef.current) return
     setError(null)
     setTranscript('')
+    transcriptRef.current = ''
     try {
       recognitionRef.current.start()
       setIsListening(true)
@@ -101,6 +112,7 @@ export function useSpeechRecognition() {
 
   const resetTranscript = useCallback(() => {
     setTranscript('')
+    transcriptRef.current = ''
     setError(null)
   }, [])
 

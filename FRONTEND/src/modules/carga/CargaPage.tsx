@@ -27,12 +27,16 @@ export default function CargaPage() {
   }, [resultados])
 
   const handleBuscar = async () => {
-    const texto = mensaje.trim()
-    if (!texto) return
+    await handleBuscarWith(mensaje)
+  }
+
+  const handleBuscarWith = async (texto: string) => {
+    const trimmed = texto.trim()
+    if (!trimmed) return
     setIsLoading(true)
     setError(null)
     try {
-      const data = await buscarComponentes(texto)
+      const data = await buscarComponentes(trimmed)
       setResultados(data.resultados)
     } catch (err) {
       const e = err as { response?: { data?: { detail?: { message?: string } } }; message?: string }
@@ -84,7 +88,7 @@ export default function CargaPage() {
 
   const handleBuscarSugerencia = (sugerencia: string) => {
     setMensaje(sugerencia)
-    handleBuscar()
+    handleBuscarWith(sugerencia)
   }
 
   const handleFinalizar = async () => {
@@ -95,8 +99,15 @@ export default function CargaPage() {
       const cotizacion = await crearCotizacionDesdeCarrito(carrito)
       navigate('/cotizacion', { state: { cotizacionId: cotizacion.cotizacion_id } })
     } catch (err) {
-      const e = err as { response?: { data?: { detail?: { message?: string } } }; message?: string }
-      setError(e.response?.data?.detail?.message || e.message || 'Error al crear cotización')
+      const e = err as { response?: { data?: { detail?: unknown } }; message?: string }
+      const detail = e.response?.data?.detail
+      if (typeof detail === 'string') {
+        setError(detail)
+      } else if (Array.isArray(detail)) {
+        setError(detail.map((d: unknown) => typeof d === 'string' ? d : JSON.stringify(d)).join('; '))
+      } else {
+        setError(e.message || 'Error al crear cotización')
+      }
     } finally {
       setIsLoading(false)
     }
@@ -203,7 +214,7 @@ export default function CargaPage() {
                 <p className="text-xs text-center" style={{ color: 'var(--color-text-muted)' }}>
                   Presiona el micrófono y habla. Tu voz se convertirá en texto.
                 </p>
-                <VoiceInput onTranscript={handleVoiceTranscript} disabled={isLoading} />
+                <VoiceInput onTranscript={handleVoiceTranscript} onAutoSearch={(text) => { setMensaje(text); handleBuscarWith(text) }} disabled={isLoading} />
                 {mensaje && (
                   <div
                     className="rounded-lg border p-3 text-sm"

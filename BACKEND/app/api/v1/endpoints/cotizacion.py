@@ -308,8 +308,8 @@ class ItemCarritoRequest(BaseModel):
     nombre_producto: str
     cantidad: int
     tienda: str
-    precio_unitario: float
-    margen_aplicado: float = 0.0
+    precio_unitario: float | None = 0.0
+    margen_aplicado: float | None = 0.0
     disponible: bool = True
     es_propio: bool = False
     url: str | None = None
@@ -359,8 +359,10 @@ async def crear_desde_carrito(
 
     total = Decimal("0")
     for item_req in body.items:
-        precio = Decimal(str(item_req.precio_unitario)).quantize(Decimal("0.01"))
-        margen = Decimal(str(item_req.margen_aplicado)).quantize(Decimal("0.01"))
+        precio_val = item_req.precio_unitario if item_req.precio_unitario is not None else 0.0
+        margen_val = item_req.margen_aplicado if item_req.margen_aplicado is not None else 0.0
+        precio = Decimal(str(precio_val)).quantize(Decimal("0.01"))
+        margen = Decimal(str(margen_val)).quantize(Decimal("0.01"))
         subtotal = (precio * item_req.cantidad).quantize(Decimal("0.01"))
         total += subtotal
 
@@ -377,9 +379,9 @@ async def crear_desde_carrito(
             seleccionado=True,
             opciones_proveedores=[{
                 "tienda": item_req.tienda,
-                "precio_base": item_req.precio_unitario,
-                "precio_con_margen": item_req.precio_unitario,
-                "margen_aplicado": item_req.margen_aplicado,
+                "precio_base": float(precio_val),
+                "precio_con_margen": float(precio_val),
+                "margen_aplicado": float(margen_val),
                 "disponible": item_req.disponible,
                 "url": item_req.url,
                 "es_propio": item_req.es_propio,

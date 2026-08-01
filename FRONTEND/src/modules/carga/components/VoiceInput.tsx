@@ -3,12 +3,21 @@ import { useSpeechRecognition } from '@/shared/hooks/useSpeechRecognition'
 
 interface Props {
   onTranscript: (text: string) => void
+  onAutoSearch?: (text: string) => void
   disabled?: boolean
 }
 
-export default function VoiceInput({ onTranscript, disabled }: Props) {
+export default function VoiceInput({ onTranscript, onAutoSearch, disabled }: Props) {
   const { isListening, transcript, error, isSupported, startListening, stopListening, resetTranscript } =
-    useSpeechRecognition()
+    useSpeechRecognition((finalText) => {
+      if (finalText.trim()) {
+        onTranscript(finalText)
+        if (onAutoSearch) {
+          onAutoSearch(finalText)
+        }
+        resetTranscript()
+      }
+    })
 
   if (!isSupported) {
     return (
@@ -28,10 +37,6 @@ export default function VoiceInput({ onTranscript, disabled }: Props) {
   const handleToggle = () => {
     if (isListening) {
       stopListening()
-      if (transcript) {
-        onTranscript(transcript)
-        resetTranscript()
-      }
     } else {
       startListening()
     }
