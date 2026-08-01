@@ -46,6 +46,19 @@ if errorlevel 1 (
 echo  Listo.
 echo.
 
+REM ─── Verificar si el frontend tiene dependencias actualizadas ───
+echo  Verificando dependencias del frontend...
+docker exec cotia_frontend test -d node_modules/tesseract.js 2>nul
+if errorlevel 1 (
+    echo  Detectadas nuevas dependencias. Reconstruyendo frontend...
+    docker compose build --no-cache frontend
+    docker compose up -d frontend
+    echo  Frontend reconstruido.
+) else (
+    echo  Dependencias OK.
+)
+echo.
+
 REM ─── Esperar al backend ───
 echo  Esperando que el backend este listo...
 set /a be_wait=0
@@ -75,6 +88,10 @@ echo.
 echo   Frontend:  http://localhost:5173
 echo   Backend:   http://localhost:8000
 echo   Swagger:   http://localhost:8000/docs
+echo   pgAdmin:   http://localhost:5050
+echo.
+echo   Login Admin: admin@cotia.com / Admin123!
+echo   Login User:  user@cotia.com  / User123!
 echo  ============================================
 echo.
 pause
