@@ -157,17 +157,15 @@ export default function TarjetaProducto({ resultado, onToggleSeleccion, seleccio
                         )}
                         {!op.disponible && (
                           <span
-                            className="flex items-center gap-1 text-xs"
+                            className="flex items-center gap-1 text-xs cursor-pointer"
                             style={{ color: selected ? 'rgba(255,255,255,0.8)' : 'var(--color-danger)' }}
                           >
                             <AlertTriangle className="w-3 h-3" />
                             Agotado
-                            {alternativas.length > 0 && (
-                              <span style={{ color: '#065F46' }} className="flex items-center gap-0.5">
-                                · ver alternativas
-                                {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                              </span>
-                            )}
+                            <span style={{ color: alternativas.length > 0 ? '#065F46' : 'var(--color-text-muted)' }} className="flex items-center gap-0.5">
+                              {alternativas.length > 0 ? '· ver alternativas' : '· sin alternativas'}
+                              {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                            </span>
                           </span>
                         )}
                       </div>
@@ -192,67 +190,75 @@ export default function TarjetaProducto({ resultado, onToggleSeleccion, seleccio
                 </button>
 
                 {/* Panel de alternativas para agotados */}
-                {isExpanded && alternativas.length > 0 && (
+                {isExpanded && (
                   <div
                     className="px-4 py-3 space-y-2"
                     style={{ backgroundColor: 'var(--color-bg)' }}
                   >
-                    <p className="text-xs font-medium" style={{ color: 'var(--color-text)' }}>
-                      Disponible en otras tiendas:
-                    </p>
-                    {alternativas.map((alt, altIdx) => {
-                      const altSelected = isSelected(alt)
-                      return (
-                        <button
-                          key={`${alt.tienda}-${altIdx}`}
-                          onClick={() => onToggleSeleccion(termino, cantidad, alt)}
-                          className="w-full flex items-center justify-between rounded-lg border px-3 py-2 text-left transition-colors"
-                          style={{
-                            backgroundColor: altSelected ? 'var(--color-primary)' : 'var(--color-surface)',
-                            borderColor: altSelected ? 'var(--color-primary)' : 'var(--color-border)',
-                          }}
-                        >
-                          <div className="flex items-center gap-2 min-w-0">
-                            {altSelected ? (
-                              <Check className="w-3.5 h-3.5 flex-shrink-0" style={{ color: '#fff' }} />
-                            ) : (
-                              <Store className="w-3.5 h-3.5 flex-shrink-0" style={{ color: 'var(--color-text-muted)' }} />
-                            )}
-                            <div className="min-w-0">
-                              <div
-                                className="text-xs font-medium truncate"
-                                style={{ color: altSelected ? '#fff' : 'var(--color-text)' }}
-                              >
-                                {alt.nombre_producto}
-                              </div>
-                              <div
-                                className="text-xs flex items-center gap-1.5"
-                                style={{ color: altSelected ? 'rgba(255,255,255,0.8)' : 'var(--color-text-muted)' }}
-                              >
-                                {alt.tienda}
-                                {alt.margen_aplicado > 0 && (
-                                  <span
-                                    className="px-1 py-0.5 rounded text-xs"
-                                    style={{
-                                      backgroundColor: altSelected ? 'rgba(255,255,255,0.2)' : '#FEF3C7',
-                                      color: altSelected ? '#fff' : '#B45309',
-                                    }}
-                                  >
-                                    +{alt.margen_aplicado}%
-                                  </span>
+                    {alternativas.length > 0 ? (
+                      <>
+                        <p className="text-xs font-medium" style={{ color: 'var(--color-text)' }}>
+                          Disponible en otras tiendas:
+                        </p>
+                        {alternativas.map((alt, altIdx) => {
+                          const altSelected = isSelected(alt)
+                          return (
+                            <button
+                              key={`${alt.tienda}-${altIdx}`}
+                              onClick={() => onToggleSeleccion(termino, cantidad, alt)}
+                              className="w-full flex items-center justify-between rounded-lg border px-3 py-2 text-left transition-colors"
+                              style={{
+                                backgroundColor: altSelected ? 'var(--color-primary)' : 'var(--color-surface)',
+                                borderColor: altSelected ? 'var(--color-primary)' : 'var(--color-border)',
+                              }}
+                            >
+                              <div className="flex items-center gap-2 min-w-0">
+                                {altSelected ? (
+                                  <Check className="w-3.5 h-3.5 flex-shrink-0" style={{ color: '#fff' }} />
+                                ) : (
+                                  <Store className="w-3.5 h-3.5 flex-shrink-0" style={{ color: 'var(--color-text-muted)' }} />
                                 )}
+                                <div className="min-w-0">
+                                  <div
+                                    className="text-xs font-medium truncate"
+                                    style={{ color: altSelected ? '#fff' : 'var(--color-text)' }}
+                                  >
+                                    {alt.nombre_producto}
+                                  </div>
+                                  <div
+                                    className="text-xs flex items-center gap-1.5"
+                                    style={{ color: altSelected ? 'rgba(255,255,255,0.8)' : 'var(--color-text-muted)' }}
+                                  >
+                                    {alt.tienda}
+                                    {alt.margen_aplicado > 0 && (
+                                      <span
+                                        className="px-1 py-0.5 rounded text-xs"
+                                        style={{
+                                          backgroundColor: altSelected ? 'rgba(255,255,255,0.2)' : '#FEF3C7',
+                                          color: altSelected ? '#fff' : '#B45309',
+                                        }}
+                                      >
+                                        +{alt.margen_aplicado}%
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
                               </div>
-                            </div>
-                          </div>
-                          <span
-                            className="text-sm font-bold flex-shrink-0"
-                            style={{ color: altSelected ? '#fff' : 'var(--color-primary)' }}
-                          >
-                            {money(alt.precio_con_margen)}
-                          </span>
-                        </button>
-                      )
-                    })}
+                              <span
+                                className="text-sm font-bold flex-shrink-0"
+                                style={{ color: altSelected ? '#fff' : 'var(--color-primary)' }}
+                              >
+                                {money(alt.precio_con_margen)}
+                              </span>
+                            </button>
+                          )
+                        })}
+                      </>
+                    ) : (
+                      <p className="text-xs text-center py-2" style={{ color: 'var(--color-text-muted)' }}>
+                        No hay alternativas disponibles en otras tiendas
+                      </p>
+                    )}
                   </div>
                 )}
               </div>

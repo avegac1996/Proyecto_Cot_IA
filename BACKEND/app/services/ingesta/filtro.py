@@ -27,9 +27,11 @@ def _normalizar(texto: str) -> str:
     # Sin tildes
     texto = unicodedata.normalize("NFD", texto)
     texto = "".join(c for c in texto if unicodedata.category(c) != "Mn")
+    # Eliminar puntuación (¿?¡!.,;:()[]{}'"...)
+    texto = re.sub(r"[¿?¡!.,;:()\[\]{}'\"\\\/]", " ", texto)
     # Múltiples espacios → uno solo
     texto = re.sub(r"\s+", " ", texto)
-    return texto
+    return texto.strip()
 
 
 def _construir_diccionario_busqueda() -> dict[str, str]:

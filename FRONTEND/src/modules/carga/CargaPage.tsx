@@ -293,6 +293,7 @@ export default function CargaPage() {
               <h3 className="text-sm font-bold" style={{ color: 'var(--color-text)' }}>
                 Resultados ({resultados.length} {resultados.length === 1 ? 'componente' : 'componentes'})
               </h3>
+              <div className="max-h-[60vh] overflow-y-auto space-y-3 pr-1">
               {resultados.map((resultado, idx) => (
                 <div key={`${resultado.termino}-${idx}`} className="space-y-2">
                   <TarjetaProducto
@@ -314,6 +315,7 @@ export default function CargaPage() {
                   )}
                 </div>
               ))}
+              </div>
             </div>
           )}
 

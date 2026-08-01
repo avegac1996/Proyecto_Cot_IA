@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Mic, Square, Loader2 } from 'lucide-react'
 import { useSpeechRecognition } from '@/shared/hooks/useSpeechRecognition'
 
@@ -8,12 +9,15 @@ interface Props {
 }
 
 export default function VoiceInput({ onTranscript, onAutoSearch, disabled }: Props) {
+  const [isProcessing, setIsProcessing] = useState(false)
   const { isListening, transcript, error, isSupported, startListening, stopListening, resetTranscript } =
     useSpeechRecognition((finalText) => {
       if (finalText.trim()) {
         onTranscript(finalText)
         if (onAutoSearch) {
+          setIsProcessing(true)
           onAutoSearch(finalText)
+          setTimeout(() => setIsProcessing(false), 3000)
         }
         resetTranscript()
       }
@@ -78,6 +82,20 @@ export default function VoiceInput({ onTranscript, onAutoSearch, disabled }: Pro
         >
           <Loader2 className="w-3 h-3 animate-spin" style={{ color: 'var(--color-primary)' }} />
           <span className="truncate">{transcript || 'Escuchando...'}</span>
+        </div>
+      )}
+
+      {isProcessing && !isListening && (
+        <div
+          className="flex items-center gap-2 rounded-lg border p-3 text-sm font-medium"
+          style={{
+            borderColor: 'var(--color-primary)',
+            backgroundColor: 'var(--color-bg)',
+            color: 'var(--color-primary)',
+          }}
+        >
+          <Loader2 className="w-4 h-4 animate-spin" />
+          Procesando y buscando componentes...
         </div>
       )}
 
