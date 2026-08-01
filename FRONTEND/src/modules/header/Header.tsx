@@ -4,6 +4,7 @@ import {
   History,
   Users,
   Settings,
+  Store,
 } from 'lucide-react'
 import { useAuthStore } from '@/shared/store/authStore'
 import ThemeToggle from './ThemeToggle'
@@ -16,6 +17,7 @@ const TABS = [
 
 const ADMIN_TABS = [
   { to: '/usuarios', label: 'Usuarios', icon: Users },
+  { to: '/admin/tiendas', label: 'Tiendas', icon: Store },
   { to: '/admin/configuracion', label: 'Config', icon: Settings },
 ]
 
