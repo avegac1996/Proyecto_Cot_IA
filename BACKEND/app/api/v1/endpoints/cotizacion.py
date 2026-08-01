@@ -46,6 +46,97 @@ async def _get_sesion(session_id: UUID, user: Usuario, db: AsyncSession) -> Sesi
     return sesion
 
 
+class ItemCarritoRequest(BaseModel):
+    nombre_producto: str
+    cantidad: int
+    tienda: str
+    precio_unitario: float | None = 0.0
+    margen_aplicado: float | None = 0.0
+    disponible: bool = True
+    es_propio: bool = False
+    url: str | None = None
+
+
+class CrearDesdeCarritoRequest(BaseModel):
+    items: list[ItemCarritoRequest]
+    cliente_nombre: str | None = None
+
+
+@router.post("/cotizacion/desde-carrito", response_model=CotizacionResponse, status_code=status.HTTP_201_CREATED)
+async def crear_desde_carrito(
+    body: CrearDesdeCarritoRequest,
+    db: AsyncSession = Depends(get_db),
+    user: Usuario = Depends(get_current_user),
+):
+    """Crea una cotización directamente desde los items del carrito.
+
+    No pasa por upload/preguntas. Los items ya tienen tienda y precio seleccionados.
+    """
+    if not body.items:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"code": "EMPTY_CART", "message": "El carrito está vacío"},
+        )
+
+    import uuid as uuid_mod
+    from decimal import Decimal
+
+    sesion = Sesion(
+        id=uuid_mod.uuid4(),
+        usuario_id=user.id,
+        componentes_json=[],
+    )
+    db.add(sesion)
+    await db.flush()
+
+    cotizacion = Cotizacion(
+        session_id=sesion.id,
+        usuario_id=user.id,
+        cliente_nombre=body.cliente_nombre,
+        estado="pendiente",
+        total=Decimal("0"),
+    )
+    db.add(cotizacion)
+    await db.flush()
+
+    total = Decimal("0")
+    for item_req in body.items:
+        precio_val = item_req.precio_unitario if item_req.precio_unitario is not None else 0.0
+        margen_val = item_req.margen_aplicado if item_req.margen_aplicado is not None else 0.0
+        precio = Decimal(str(precio_val)).quantize(Decimal("0.01"))
+        margen = Decimal(str(margen_val)).quantize(Decimal("0.01"))
+        subtotal = (precio * item_req.cantidad).quantize(Decimal("0.01"))
+        total += subtotal
+
+        item = CotizacionItem(
+            cotizacion_id=cotizacion.id,
+            producto_nombre=item_req.nombre_producto,
+            cantidad=item_req.cantidad,
+            precio_unitario=precio,
+            proveedor=item_req.tienda,
+            margen_aplicado=margen,
+            subtotal=subtotal,
+            disponible=item_req.disponible,
+            es_propio=item_req.es_propio,
+            seleccionado=True,
+            opciones_proveedores=[{
+                "tienda": item_req.tienda,
+                "precio_base": float(precio_val),
+                "precio_con_margen": float(precio_val),
+                "margen_aplicado": float(margen_val),
+                "disponible": item_req.disponible,
+                "url": item_req.url,
+                "es_propio": item_req.es_propio,
+            }],
+        )
+        db.add(item)
+
+    cotizacion.total = total.quantize(Decimal("0.01"))
+    await db.commit()
+    await db.refresh(cotizacion)
+    return _to_response(cotizacion)
+
+
 @router.post("/cotizacion/{session_id}", response_model=CotizacionResponse, status_code=status.HTTP_201_CREATED)
 async def crear_cotizacion(
     session_id: UUID,
@@ -299,97 +390,6 @@ async def finalizar_cotizacion(
         )
 
     cotizacion.estado = "finalizada"
-    await db.commit()
-    await db.refresh(cotizacion)
-    return _to_response(cotizacion)
-
-
-class ItemCarritoRequest(BaseModel):
-    nombre_producto: str
-    cantidad: int
-    tienda: str
-    precio_unitario: float | None = 0.0
-    margen_aplicado: float | None = 0.0
-    disponible: bool = True
-    es_propio: bool = False
-    url: str | None = None
-
-
-class CrearDesdeCarritoRequest(BaseModel):
-    items: list[ItemCarritoRequest]
-    cliente_nombre: str | None = None
-
-
-@router.post("/cotizacion/desde-carrito", response_model=CotizacionResponse, status_code=status.HTTP_201_CREATED)
-async def crear_desde_carrito(
-    body: CrearDesdeCarritoRequest,
-    db: AsyncSession = Depends(get_db),
-    user: Usuario = Depends(get_current_user),
-):
-    """Crea una cotización directamente desde los items del carrito.
-
-    No pasa por upload/preguntas. Los items ya tienen tienda y precio seleccionados.
-    """
-    if not body.items:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={"code": "EMPTY_CART", "message": "El carrito está vacío"},
-        )
-
-    import uuid as uuid_mod
-    from decimal import Decimal
-
-    sesion = Sesion(
-        id=uuid_mod.uuid4(),
-        usuario_id=user.id,
-        componentes_json=[],
-    )
-    db.add(sesion)
-    await db.flush()
-
-    cotizacion = Cotizacion(
-        session_id=sesion.id,
-        usuario_id=user.id,
-        cliente_nombre=body.cliente_nombre,
-        estado="pendiente",
-        total=Decimal("0"),
-    )
-    db.add(cotizacion)
-    await db.flush()
-
-    total = Decimal("0")
-    for item_req in body.items:
-        precio_val = item_req.precio_unitario if item_req.precio_unitario is not None else 0.0
-        margen_val = item_req.margen_aplicado if item_req.margen_aplicado is not None else 0.0
-        precio = Decimal(str(precio_val)).quantize(Decimal("0.01"))
-        margen = Decimal(str(margen_val)).quantize(Decimal("0.01"))
-        subtotal = (precio * item_req.cantidad).quantize(Decimal("0.01"))
-        total += subtotal
-
-        item = CotizacionItem(
-            cotizacion_id=cotizacion.id,
-            producto_nombre=item_req.nombre_producto,
-            cantidad=item_req.cantidad,
-            precio_unitario=precio,
-            proveedor=item_req.tienda,
-            margen_aplicado=margen,
-            subtotal=subtotal,
-            disponible=item_req.disponible,
-            es_propio=item_req.es_propio,
-            seleccionado=True,
-            opciones_proveedores=[{
-                "tienda": item_req.tienda,
-                "precio_base": float(precio_val),
-                "precio_con_margen": float(precio_val),
-                "margen_aplicado": float(margen_val),
-                "disponible": item_req.disponible,
-                "url": item_req.url,
-                "es_propio": item_req.es_propio,
-            }],
-        )
-        db.add(item)
-
-    cotizacion.total = total.quantize(Decimal("0.01"))
     await db.commit()
     await db.refresh(cotizacion)
     return _to_response(cotizacion)
