@@ -393,3 +393,23 @@ async def crear_desde_carrito(
     await db.commit()
     await db.refresh(cotizacion)
     return _to_response(cotizacion)
+
+
+@router.delete("/cotizacion/{cotizacion_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def eliminar_cotizacion(
+    cotizacion_id: int,
+    db: AsyncSession = Depends(get_db),
+    user: Usuario = Depends(get_current_user),
+):
+    """Elimina una cotización y sus items."""
+    cotizacion = await _get_cotizacion_by_id(cotizacion_id, user, db)
+
+    result = await db.execute(
+        select(CotizacionItem).where(CotizacionItem.cotizacion_id == cotizacion_id)
+    )
+    items = result.scalars().all()
+    for item in items:
+        await db.delete(item)
+
+    await db.delete(cotizacion)
+    await db.commit()

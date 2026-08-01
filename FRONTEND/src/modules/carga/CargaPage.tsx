@@ -97,7 +97,7 @@ export default function CargaPage() {
     setError(null)
     try {
       const cotizacion = await crearCotizacionDesdeCarrito(carrito)
-      navigate('/cotizacion', { state: { cotizacionId: cotizacion.cotizacion_id } })
+      navigate('/historial', { state: { cotizacionCreada: cotizacion.cotizacion_id } })
     } catch (err) {
       const e = err as { response?: { data?: { detail?: unknown } }; message?: string }
       const detail = e.response?.data?.detail

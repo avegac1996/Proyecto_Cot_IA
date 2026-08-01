@@ -6,8 +6,6 @@ import LoginPage from '@/modules/login/LoginPage'
 import AppShell from '@/app/AppShell'
 
 const CargaPage = lazy(() => import('@/modules/carga/CargaPage'))
-const PreguntasPage = lazy(() => import('@/modules/preguntas/PreguntasPage'))
-const CotizacionPage = lazy(() => import('@/modules/cotizacion/CotizacionPage'))
 const HistorialPage = lazy(() => import('@/modules/historial/HistorialPage'))
 const UsuariosPage = lazy(() => import('@/modules/usuarios/UsuariosPage'))
 const ConfiguracionPage = lazy(() => import('@/modules/admin/ConfiguracionPage'))
@@ -46,8 +44,6 @@ export default function AppRouter() {
         >
           <Route path="/" element={<Navigate to="/carga" replace />} />
           <Route path="/carga" element={<Suspense fallback={<PageFallback />}><CargaPage /></Suspense>} />
-          <Route path="/preguntas" element={<Suspense fallback={<PageFallback />}><PreguntasPage /></Suspense>} />
-          <Route path="/cotizacion" element={<Suspense fallback={<PageFallback />}><CotizacionPage /></Suspense>} />
           <Route path="/historial" element={<Suspense fallback={<PageFallback />}><HistorialPage /></Suspense>} />
           <Route
             path="/usuarios"

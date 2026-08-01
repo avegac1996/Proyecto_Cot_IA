@@ -1,8 +1,6 @@
 import { NavLink } from 'react-router-dom'
 import {
   FileUp,
-  MessagesSquare,
-  FileText,
   History,
   Users,
   Settings,
@@ -13,8 +11,6 @@ import UserMenu from './UserMenu'
 
 const TABS = [
   { to: '/carga', label: 'Carga', icon: FileUp },
-  { to: '/preguntas', label: 'Preguntas', icon: MessagesSquare },
-  { to: '/cotizacion', label: 'Cotización', icon: FileText },
   { to: '/historial', label: 'Historial', icon: History },
 ]
 
