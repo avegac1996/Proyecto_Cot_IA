@@ -4,6 +4,7 @@ BACKEND/app/__pycache__/
 BACKEND/**/*.__pycache__/
 FRONTEND/node_modules/
 FRONTEND/dist/
+FRONTEND/tsconfig.tsbuildinfo
 
 # Env
 BACKEND/.env

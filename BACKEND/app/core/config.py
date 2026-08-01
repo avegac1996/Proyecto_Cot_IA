@@ -19,6 +19,12 @@ class Settings(BaseSettings):
     # Bcrypt
     BCRYPT_COST_FACTOR: int = 12
 
+    # Negocio
+    MARGEN_COMPETENCIA: float = 5.0
+    SCRAPING_TTL_HOURS: int = 24
+    MAX_FILE_SIZE_MB: int = 25
+    MAX_PREGUNTAS_SESION: int = 5
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [origin.strip() for origin in self.CORS_ORIGINS.split(",")]
