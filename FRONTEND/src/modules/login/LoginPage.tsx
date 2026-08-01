@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Lock, Mail, Loader2, AlertCircle } from 'lucide-react'
+import { Lock, Mail, Loader2, AlertCircle, ShieldCheck, User } from 'lucide-react'
 import { useAuthStore } from '@/shared/store/authStore'
 
 export default function LoginPage() {
@@ -13,6 +13,15 @@ export default function LoginPage() {
     e.preventDefault()
     try {
       await login(email, password)
+      navigate('/')
+    } catch {
+      // error is set in store
+    }
+  }
+
+  const handleQuickLogin = async (quickEmail: string, quickPassword: string) => {
+    try {
+      await login(quickEmail, quickPassword)
       navigate('/')
     } catch {
       // error is set in store
@@ -116,6 +125,38 @@ export default function LoginPage() {
               )}
             </button>
           </form>
+
+          {/* Quick login (solo para pruebas) */}
+          <div className="mt-4 flex gap-3">
+            <button
+              type="button"
+              onClick={() => handleQuickLogin('admin@cotia.com', 'Admin123!')}
+              disabled={isLoading}
+              className="flex-1 py-2.5 rounded-lg font-medium text-sm transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 border"
+              style={{
+                borderColor: 'var(--color-primary)',
+                color: 'var(--color-primary)',
+                backgroundColor: 'transparent',
+              }}
+            >
+              <ShieldCheck className="w-4 h-4" />
+              Admin
+            </button>
+            <button
+              type="button"
+              onClick={() => handleQuickLogin('user@cotia.com', 'User123!')}
+              disabled={isLoading}
+              className="flex-1 py-2.5 rounded-lg font-medium text-sm transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 border"
+              style={{
+                borderColor: 'var(--color-border)',
+                color: 'var(--color-text-muted)',
+                backgroundColor: 'transparent',
+              }}
+            >
+              <User className="w-4 h-4" />
+              User
+            </button>
+          </div>
 
           {/* Default credentials hint */}
           <div className="mt-6 pt-6 border-t text-xs space-y-1"

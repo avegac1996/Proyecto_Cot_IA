@@ -17,9 +17,45 @@ from app.models import (
 )
 
 TIENDAS_SEED = [
-    {"nombre": "AV Electronics", "url_base": "https://avelectronics.cc/"},
-    {"nombre": "Megatronica", "url_base": "https://megatronica.cc/"},
-    {"nombre": "Electro Store", "url_base": "https://electrostoree.com/"},
+    {
+        "nombre": "AV Electronics",
+        "url_base": "https://avelectronics.cc/",
+        "selectores": {
+            "product_card": ".product-item",
+            "price": ".product-price",
+            "availability": ".product-stock",
+            "product_url": ".product-link",
+            "search_url": "https://avelectronics.cc/search?q={query}",
+        },
+        "usa_javascript": False,
+        "ttl_horas": 24,
+    },
+    {
+        "nombre": "Megatronica",
+        "url_base": "https://megatronica.cc/",
+        "selectores": {
+            "product_card": ".product-grid-item",
+            "price": ".price-item--regular",
+            "availability": ".product-form__inventory",
+            "product_url": ".full-unstyled-link",
+            "search_url": "https://megatronica.cc/search?q={query}",
+        },
+        "usa_javascript": True,
+        "ttl_horas": 12,
+    },
+    {
+        "nombre": "Electro Store",
+        "url_base": "https://electrostoree.com/",
+        "selectores": {
+            "product_card": ".product-small",
+            "price": ".price",
+            "availability": ".availability",
+            "product_url": ".product-small-link",
+            "search_url": "https://electrostoree.com/search?q={query}",
+        },
+        "usa_javascript": False,
+        "ttl_horas": 24,
+    },
 ]
 
 PREGUNTAS_SEED = [

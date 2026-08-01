@@ -77,8 +77,8 @@ async def generar_cotizacion(
         estado="completada",
         total=Decimal(0),
     )
-    db.add(cotizacion)
-    await db.flush()
+    # No hacer flush aquí: mientras el objeto está pendiente, la colección
+    # `items` funciona sin lazy load (evita MissingGreenlet en async)
 
     total = Decimal(0)
     for comp in sesion.componentes_json:
@@ -88,7 +88,7 @@ async def generar_cotizacion(
 
         proveedores = []
         if producto is not None:
-            proveedores = await buscar_precios(db, producto.id)
+            proveedores = await buscar_precios(db, producto)
 
         # Precio final por proveedor con margen aplicado
         disponibles = []
@@ -102,7 +102,6 @@ async def generar_cotizacion(
             mejor, precio_unit = min(disponibles, key=lambda dp: dp[1])
             subtotal = (precio_unit * cantidad).quantize(Decimal("0.01"))
             item = CotizacionItem(
-                cotizacion_id=cotizacion.id,
                 producto_id=producto.id if producto else None,
                 producto_nombre=nombre,
                 cantidad=cantidad,
@@ -115,7 +114,6 @@ async def generar_cotizacion(
             total += subtotal
         else:
             item = CotizacionItem(
-                cotizacion_id=cotizacion.id,
                 producto_id=producto.id if producto else None,
                 producto_nombre=nombre,
                 cantidad=cantidad,
@@ -131,6 +129,7 @@ async def generar_cotizacion(
     cotizacion.total = total
     sesion.estado = "completada"
     sesion.ambiguedades_resueltas = True
+    db.add(cotizacion)
     await db.commit()
     await db.refresh(cotizacion)
     return cotizacion

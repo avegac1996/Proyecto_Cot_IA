@@ -75,6 +75,7 @@ services:
     volumes:
       - ./FRONTEND/src:/app/src
       - ./FRONTEND/public:/app/public
+      - ./FRONTEND/vite.config.ts:/app/vite.config.ts
     command: npm run dev -- --host 0.0.0.0
 
 volumes:

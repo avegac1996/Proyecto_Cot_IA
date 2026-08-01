@@ -12,5 +12,11 @@ export default defineConfig({
   server: {
     host: '0.0.0.0',
     port: 5173,
+    watch: {
+      // Necesario en Docker sobre Windows: los eventos de filesystem
+      // no se propagan al contenedor, hay que usar polling
+      usePolling: true,
+      interval: 500,
+    },
   },
 })

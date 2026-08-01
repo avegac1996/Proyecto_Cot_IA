@@ -10,15 +10,15 @@ export default function CargaPage() {
   const navigate = useNavigate()
   const setSesion = useCotizacionStore((s) => s.setSesion)
   const [file, setFile] = useState<File | null>(null)
+  const [texto, setTexto] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const handleUpload = async () => {
-    if (!file) return
+  const procesar = async (archivo: File) => {
     setIsLoading(true)
     setError(null)
     try {
-      const data = await uploadFile(file)
+      const data = await uploadFile(archivo)
       setSesion(data.session_id, data.componentes)
       navigate(data.ambiguedades_detectadas ? '/preguntas' : '/cotizacion')
     } catch (err) {
@@ -26,6 +26,16 @@ export default function CargaPage() {
     } finally {
       setIsLoading(false)
     }
+  }
+
+  const handleUpload = () => {
+    if (file) procesar(file)
+  }
+
+  const handleTexto = () => {
+    const contenido = texto.trim()
+    if (!contenido) return
+    procesar(new File([contenido], 'lista.txt', { type: 'text/plain' }))
   }
 
   return (
@@ -50,6 +60,41 @@ export default function CargaPage() {
       <DropZone onFileSelected={setFile} disabled={isLoading} />
 
       {file && <FilePreview file={file} onRemove={() => setFile(null)} />}
+
+      <div className="flex items-center gap-3">
+        <div className="flex-1 border-t" style={{ borderColor: 'var(--color-border)' }} />
+        <span className="text-xs font-medium" style={{ color: 'var(--color-text-muted)' }}>
+          O escribe tu lista
+        </span>
+        <div className="flex-1 border-t" style={{ borderColor: 'var(--color-border)' }} />
+      </div>
+
+      <textarea
+        value={texto}
+        onChange={(e) => setTexto(e.target.value)}
+        disabled={isLoading}
+        rows={5}
+        placeholder={'5 resistencias de 220 ohm\n10 leds rojos 5mm\n1 arduino uno'}
+        className="w-full px-3 py-2.5 rounded-lg border outline-none text-sm resize-y"
+        style={{
+          borderColor: 'var(--color-border)',
+          backgroundColor: 'var(--color-surface)',
+          color: 'var(--color-text)',
+        }}
+      />
+
+      <button
+        onClick={handleTexto}
+        disabled={!texto.trim() || isLoading}
+        className="w-full py-2.5 rounded-lg font-medium text-sm transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 border"
+        style={{
+          borderColor: 'var(--color-primary)',
+          color: 'var(--color-primary)',
+          backgroundColor: 'transparent',
+        }}
+      >
+        Procesar texto
+      </button>
 
       {error && (
         <div

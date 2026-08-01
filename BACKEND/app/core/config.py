@@ -21,7 +21,6 @@ class Settings(BaseSettings):
 
     # Negocio
     MARGEN_COMPETENCIA: float = 5.0
-    SCRAPING_TTL_HOURS: int = 24
     MAX_FILE_SIZE_MB: int = 25
     MAX_PREGUNTAS_SESION: int = 5
 

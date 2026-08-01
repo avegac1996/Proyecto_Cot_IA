@@ -20,4 +20,4 @@ class ScrapingCache(Base):
     disponible: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     url_producto: Mapped[str | None] = mapped_column(Text, nullable=True)
     fecha_consulta: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
-    ttl_horas: Mapped[int] = mapped_column(Integer, default=24, nullable=False)
+    ttl_horas: Mapped[int | None] = mapped_column(Integer, nullable=True)
