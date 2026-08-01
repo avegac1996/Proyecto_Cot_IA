@@ -90,18 +90,53 @@ def generate_pdf(cotizacion: Cotizacion) -> bytes:
     # Items table
     elements.append(Paragraph("Detalle de Componentes", section_style))
 
-    header = ["Producto", "Cant.", "Proveedor", "P. Unit.", "Subtotal", "Estado"]
+    cell_style = ParagraphStyle(
+        "Cell",
+        parent=styles["Normal"],
+        fontSize=9,
+        leading=11,
+    )
+    cell_center = ParagraphStyle(
+        "CellCenter",
+        parent=cell_style,
+        alignment=1,
+    )
+    cell_right = ParagraphStyle(
+        "CellRight",
+        parent=cell_style,
+        alignment=2,
+    )
+
+    def _p(text: str, style: ParagraphStyle = cell_style) -> Paragraph:
+        escaped = (text or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+        return Paragraph(escaped, style)
+
+    header = [
+        Paragraph("Producto", ParagraphStyle("Hdr", parent=cell_style, fontName="Helvetica-Bold", textColor=colors.white)),
+        Paragraph("Cant.", ParagraphStyle("HdrC", parent=cell_center, fontName="Helvetica-Bold", textColor=colors.white)),
+        Paragraph("Proveedor", ParagraphStyle("HdrP", parent=cell_style, fontName="Helvetica-Bold", textColor=colors.white)),
+        Paragraph("P. Unit.", ParagraphStyle("HdrR", parent=cell_right, fontName="Helvetica-Bold", textColor=colors.white)),
+        Paragraph("Subtotal", ParagraphStyle("HdrR2", parent=cell_right, fontName="Helvetica-Bold", textColor=colors.white)),
+        Paragraph("Estado", ParagraphStyle("HdrC2", parent=cell_center, fontName="Helvetica-Bold", textColor=colors.white)),
+    ]
     rows = [header]
     for item in cotizacion.items:
         rows.append([
-            item.producto_nombre,
-            str(item.cantidad),
-            item.proveedor or "—",
-            _money(item.precio_unitario) if item.disponible else "—",
-            _money(item.subtotal) if item.disponible else "—",
-            "Disponible" if item.disponible else "Sin datos",
+            _p(item.producto_nombre),
+            _p(str(item.cantidad), cell_center),
+            _p(item.proveedor or "—"),
+            _p(_money(item.precio_unitario) if item.disponible else "—", cell_right),
+            _p(_money(item.subtotal) if item.disponible else "—", cell_right),
+            _p("Disponible" if item.disponible else "Sin datos", cell_center),
         ])
-    rows.append(["", "", "", "TOTAL:", _money(cotizacion.total), ""])
+    rows.append([
+        "",
+        "",
+        "",
+        Paragraph("TOTAL:", ParagraphStyle("TotalLbl", parent=cell_right, fontName="Helvetica-Bold", fontSize=11)),
+        Paragraph(_money(cotizacion.total), ParagraphStyle("TotalVal", parent=cell_right, fontName="Helvetica-Bold", fontSize=11, textColor=colors.HexColor("#1e40af"))),
+        "",
+    ])
 
     col_widths = [2.2 * inch, 0.5 * inch, 1.2 * inch, 0.9 * inch, 0.9 * inch, 0.8 * inch]
     table = Table(rows, colWidths=col_widths, repeatRows=1)
