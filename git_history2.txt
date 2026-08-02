@@ -4,3 +4,4 @@ jhossua - refactor: extraer hook useHistorial
 jhossua - feat: agregar badge de estado en tarjeta de producto
 jhossua - fix: corregir validacion de cantidad negativa
 jhossua - docs: actualizar guia de despliegue
+jhossua - feat: agregar filtro por estado en historial
