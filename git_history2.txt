@@ -3,3 +3,4 @@ jhossua - fix: corregir ordenamiento por columna en tabla
 jhossua - refactor: extraer hook useHistorial
 jhossua - feat: agregar badge de estado en tarjeta de producto
 jhossua - fix: corregir validacion de cantidad negativa
+jhossua - docs: actualizar guia de despliegue
