@@ -1570,71 +1570,71 @@ INSERT INTO usuarios (username, email, password_hash, rol, activo) VALUES
 
 ### 8.4 Tabla `cotizaciones`
 
-| Columna | Tipo | Descripción |
-|---|---|---|
-| `id` | SERIAL PK | Identificador único |
-| `session_id` | UUID NOT NULL UNIQUE | Sesión de la cotización |
-| `usuario_id` | INT FK → usuarios(id) NOT NULL | Usuario que creó la cotización |
-| `cliente_nombre` | VARCHAR(255) | Nombre del cliente (opcional) |
-| `fecha_creacion` | TIMESTAMP DEFAULT NOW() | Fecha de creación |
-| `fecha_actualizacion` | TIMESTAMP DEFAULT NOW() | Fecha de última actualización |
-| `estado` | VARCHAR(20) DEFAULT 'pendiente' | `pendiente`, `completada`, `cancelada` |
-| `total` | DECIMAL(10,2) | Total de la cotización |
+| Columna               | Tipo                            | Descripción                            |
+| -----------------------| ---------------------------------| ----------------------------------------|
+| `id`                  | SERIAL PK                       | Identificador único                    |
+| `session_id`          | UUID NOT NULL UNIQUE            | Sesión de la cotización                |
+| `usuario_id`          | INT FK → usuarios(id) NOT NULL  | Usuario que creó la cotización         |
+| `cliente_nombre`      | VARCHAR(255)                    | Nombre del cliente (opcional)          |
+| `fecha_creacion`      | TIMESTAMP DEFAULT NOW()         | Fecha de creación                      |
+| `fecha_actualizacion` | TIMESTAMP DEFAULT NOW()         | Fecha de última actualización          |
+| `estado`              | VARCHAR(20) DEFAULT 'pendiente' | `pendiente`, `completada`, `cancelada` |
+| `total`               | DECIMAL(10,2)                   | Total de la cotización                 |
 
 **Índices**: `CREATE INDEX idx_cotizaciones_usuario ON cotizaciones(usuario_id);`
 
 ### 8.5 Tabla `cotizacion_items`
 
-| Columna | Tipo | Descripción |
-|---|---|---|
-| `id` | SERIAL PK | Identificador único |
-| `cotizacion_id` | INT FK → cotizaciones(id) | Cotización a la que pertenece |
-| `producto_id` | INT FK → productos(id) | Producto cotizado |
-| `cantidad` | INT NOT NULL | Cantidad solicitada |
-| `precio_unitario` | DECIMAL(10,2) NOT NULL | Precio por unidad |
-| `proveedor` | VARCHAR(100) NOT NULL | Tienda proveedora |
-| `margen_aplicado` | DECIMAL(5,2) DEFAULT 0 | Margen aplicado (0% o 5%) |
-| `subtotal` | DECIMAL(10,2) NOT NULL | cantidad × precio_unitario |
-| `disponible` | BOOLEAN DEFAULT true | Disponibilidad en el momento de la cotización |
+| Columna           | Tipo                      | Descripción                                   |
+| -------------------| ---------------------------| -----------------------------------------------|
+| `id`              | SERIAL PK                 | Identificador único                           |
+| `cotizacion_id`   | INT FK → cotizaciones(id) | Cotización a la que pertenece                 |
+| `producto_id`     | INT FK → productos(id)    | Producto cotizado                             |
+| `cantidad`        | INT NOT NULL              | Cantidad solicitada                           |
+| `precio_unitario` | DECIMAL(10,2) NOT NULL    | Precio por unidad                             |
+| `proveedor`       | VARCHAR(100) NOT NULL     | Tienda proveedora                             |
+| `margen_aplicado` | DECIMAL(5,2) DEFAULT 0    | Margen aplicado (0% o 5%)                     |
+| `subtotal`        | DECIMAL(10,2) NOT NULL    | cantidad × precio_unitario                    |
+| `disponible`      | BOOLEAN DEFAULT true      | Disponibilidad en el momento de la cotización |
 
 ### 8.6 Tabla `scraping_cache`
 
-| Columna | Tipo | Descripción |
-|---|---|---|
-| `id` | SERIAL PK | Identificador único |
-| `producto_id` | INT FK → productos(id) | Producto consultado |
-| `tienda` | VARCHAR(100) NOT NULL | Nombre de la tienda |
-| `precio` | DECIMAL(10,2) | Precio encontrado |
-| `disponible` | BOOLEAN | Disponibilidad |
-| `url_producto` | TEXT | URL del producto en la tienda |
-| `fecha_consulta` | TIMESTAMP DEFAULT NOW() | Fecha de la última consulta |
-| `ttl_horas` | INT DEFAULT 24 | TTL del cache en horas |
+| Columna          | Tipo                    | Descripción                   |
+| ------------------| -------------------------| -------------------------------|
+| `id`             | SERIAL PK               | Identificador único           |
+| `producto_id`    | INT FK → productos(id)  | Producto consultado           |
+| `tienda`         | VARCHAR(100) NOT NULL   | Nombre de la tienda           |
+| `precio`         | DECIMAL(10,2)           | Precio encontrado             |
+| `disponible`     | BOOLEAN                 | Disponibilidad                |
+| `url_producto`   | TEXT                    | URL del producto en la tienda |
+| `fecha_consulta` | TIMESTAMP DEFAULT NOW() | Fecha de la última consulta   |
+| `ttl_horas`      | INT DEFAULT 24          | TTL del cache en horas        |
 
 **Índices**: `CREATE INDEX idx_scraping_cache_producto_tienda ON scraping_cache(producto_id, tienda);`
 
 ### 8.7 Tabla `banco_preguntas`
 
-| Columna | Tipo | Descripción |
-|---|---|---|
-| `id` | SERIAL PK | Identificador único |
-| `categoria` | VARCHAR(100) NOT NULL | Categoría de la pregunta |
-| `pregunta` | TEXT NOT NULL | Texto de la pregunta |
-| `campo_a_desambiguar` | VARCHAR(100) | Campo que resuelve (color, tamaño, etc.) |
-| `prioridad` | INT DEFAULT 5 | Prioridad (1 = alta, 10 = baja) |
-| `activa` | BOOLEAN DEFAULT true | Pregunta activa |
+| Columna               | Tipo                  | Descripción                              |
+| -----------------------| -----------------------| ------------------------------------------|
+| `id`                  | SERIAL PK             | Identificador único                      |
+| `categoria`           | VARCHAR(100) NOT NULL | Categoría de la pregunta                 |
+| `pregunta`            | TEXT NOT NULL         | Texto de la pregunta                     |
+| `campo_a_desambiguar` | VARCHAR(100)          | Campo que resuelve (color, tamaño, etc.) |
+| `prioridad`           | INT DEFAULT 5         | Prioridad (1 = alta, 10 = baja)          |
+| `activa`              | BOOLEAN DEFAULT true  | Pregunta activa                          |
 
 ### 8.8 Tabla `tiendas`
 
-| Columna | Tipo | Descripción |
-|---|---|---|
-| `id` | SERIAL PK | Identificador único |
-| `nombre` | VARCHAR(100) NOT NULL | Nombre de la tienda |
-| `url_base` | TEXT NOT NULL | URL base del sitio |
-| `selector_precio` | TEXT | Selector CSS para precio |
-| `selector_disponibilidad` | TEXT | Selector CSS para disponibilidad |
-| `selector_nombre` | TEXT | Selector CSS para nombre de producto |
-| `activa` | BOOLEAN DEFAULT true | Tienda activa para scraping |
-| `usa_javascript` | BOOLEAN DEFAULT false | Si requiere renderizado JS (Playwright) |
+| Columna                   | Tipo                  | Descripción                             |
+| ---------------------------| -----------------------| -----------------------------------------|
+| `id`                      | SERIAL PK             | Identificador único                     |
+| `nombre`                  | VARCHAR(100) NOT NULL | Nombre de la tienda                     |
+| `url_base`                | TEXT NOT NULL         | URL base del sitio                      |
+| `selector_precio`         | TEXT                  | Selector CSS para precio                |
+| `selector_disponibilidad` | TEXT                  | Selector CSS para disponibilidad        |
+| `selector_nombre`         | TEXT                  | Selector CSS para nombre de producto    |
+| `activa`                  | BOOLEAN DEFAULT true  | Tienda activa para scraping             |
+| `usa_javascript`          | BOOLEAN DEFAULT false | Si requiere renderizado JS (Playwright) |
 
 ### 8.9 Tabla `sesiones`
 

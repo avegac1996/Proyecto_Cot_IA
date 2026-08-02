@@ -1,10 +1,12 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
+from app.core.config import settings
 from app.core.database import get_db
 from app.models.usuario import Usuario
+from app.services.gemini.vision import identificar_componentes_imagen
 from app.services.ingesta.filtro import extraer_componentes
 from app.services.scraping.busqueda import buscar_por_termino_priorizado
 from app.services.scraping.engine import buscar_por_termino
@@ -170,3 +172,48 @@ async def buscar_alternativas(
                 ))
 
     return AlternativaResponse(alternativas=alternativas)
+
+
+class ImagenResponse(BaseModel):
+    texto: str
+    componentes: list[str]
+
+
+@router.post("/imagen", response_model=ImagenResponse)
+async def identificar_imagen(
+    file: UploadFile = File(...),
+    user: Usuario = Depends(get_current_user),
+):
+    """Recibe una imagen, la envía a Google Gemini Vision y devuelve los
+    componentes electrónicos identificados en formato de lista."""
+
+    if not settings.GEMINI_API_KEY:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={"code": "GEMINI_NOT_CONFIGURED", "message": "Gemini API no configurada"},
+        )
+
+    if not file.content_type or not file.content_type.startswith("image/"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"code": "INVALID_FILE", "message": "El archivo debe ser una imagen"},
+        )
+
+    image_bytes = await file.read()
+    if len(image_bytes) > 10 * 1024 * 1024:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"code": "FILE_TOO_LARGE", "message": "La imagen no puede pesar más de 10MB"},
+        )
+
+    try:
+        texto = await identificar_componentes_imagen(image_bytes, file.content_type)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail={"code": "GEMINI_ERROR", "message": str(exc)},
+        )
+
+    componentes = [line.strip() for line in texto.split("\n") if line.strip()]
+
+    return ImagenResponse(texto=texto, componentes=componentes)

@@ -6,6 +6,20 @@ export async function buscarComponentes(texto: string): Promise<BusquedaResponse
   return data
 }
 
+export interface ImagenResponse {
+  texto: string
+  componentes: string[]
+}
+
+export async function identificarImagen(file: File): Promise<ImagenResponse> {
+  const formData = new FormData()
+  formData.append('file', file)
+  const { data } = await api.post<ImagenResponse>('/buscar/imagen', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+  return data
+}
+
 export async function getCotizacionById(cotizacionId: number): Promise<Cotizacion> {
   const { data } = await api.get<Cotizacion>(`/cotizacion/by-id/${cotizacionId}`)
   return data

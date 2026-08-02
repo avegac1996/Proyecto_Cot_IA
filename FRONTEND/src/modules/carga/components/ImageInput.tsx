@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react'
-import { Image as ImageIcon, Loader2, ScanText, AlertCircle } from 'lucide-react'
+import { Image as ImageIcon, ScanText, AlertCircle, Sparkles } from 'lucide-react'
+import { identificarImagen } from '../services/busquedaService'
 
 interface Props {
   onTextExtracted: (text: string) => void
@@ -10,6 +11,7 @@ export default function ImageInput({ onTextExtracted, disabled }: Props) {
   const [isProcessing, setIsProcessing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [preview, setPreview] = useState<string | null>(null)
+  const [componentes, setComponentes] = useState<string[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleFile = async (file: File) => {
@@ -19,22 +21,22 @@ export default function ImageInput({ onTextExtracted, disabled }: Props) {
     }
 
     setError(null)
+    setComponentes([])
     setPreview(URL.createObjectURL(file))
     setIsProcessing(true)
 
     try {
-      const Tesseract = await import('tesseract.js')
-      const { data } = await Tesseract.recognize(file, 'spa+eng', {
-        logger: () => {},
-      })
-      const text = data.text.trim()
-      if (text) {
-        onTextExtracted(text)
+      const response = await identificarImagen(file)
+      const texto = response.texto.trim()
+      if (texto) {
+        setComponentes(response.componentes)
+        onTextExtracted(texto)
       } else {
-        setError('No se detectó texto en la imagen')
+        setError('Gemini no identificó componentes en la imagen')
       }
-    } catch {
-      setError('Error al procesar la imagen con OCR')
+    } catch (err) {
+      const e = err as { response?: { data?: { detail?: { message?: string } } }; message?: string }
+      setError(e.response?.data?.detail?.message || e.message || 'Error al analizar la imagen')
     } finally {
       setIsProcessing(false)
     }
@@ -64,13 +66,24 @@ export default function ImageInput({ onTextExtracted, disabled }: Props) {
             <img src={preview} alt="Preview" className="max-h-32 mx-auto rounded" />
             {isProcessing ? (
               <div className="flex items-center justify-center gap-2 text-xs" style={{ color: 'var(--color-text-muted)' }}>
-                <Loader2 className="w-3 h-3 animate-spin" />
-                Extrayendo texto...
+                <Sparkles className="w-3 h-3 animate-pulse" style={{ color: '#4285F4' }} />
+                Analizando con Gemini...
               </div>
             ) : (
-              <div className="flex items-center justify-center gap-1 text-xs" style={{ color: 'var(--color-primary)' }}>
-                <ScanText className="w-3 h-3" />
-                Texto extraído — click para otra imagen
+              <div className="space-y-1">
+                <div className="flex items-center justify-center gap-1 text-xs" style={{ color: 'var(--color-primary)' }}>
+                  <ScanText className="w-3 h-3" />
+                  {componentes.length} componente(s) identificado(s) — click para otra imagen
+                </div>
+                {componentes.length > 0 && (
+                  <div className="text-left space-y-0.5 mt-2 p-2 rounded text-xs" style={{ backgroundColor: 'var(--color-surface)' }}>
+                    {componentes.map((comp, i) => (
+                      <div key={i} className="flex items-center gap-1" style={{ color: 'var(--color-text)' }}>
+                        <span style={{ color: '#4285F4' }}>●</span> {comp}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -78,7 +91,10 @@ export default function ImageInput({ onTextExtracted, disabled }: Props) {
           <div className="flex flex-col items-center gap-1 py-2" style={{ color: 'var(--color-text-muted)' }}>
             <ImageIcon className="w-6 h-6" />
             <span className="text-xs">Arrastra o click para subir imagen</span>
-            <span className="text-xs opacity-60">OCR con Tesseract.js (español + inglés)</span>
+            <span className="text-xs flex items-center gap-1" style={{ color: '#4285F4' }}>
+              <Sparkles className="w-3 h-3" />
+              Análisis con Google Gemini Vision
+            </span>
           </div>
         )}
         <input

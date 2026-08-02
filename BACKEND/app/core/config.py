@@ -25,6 +25,9 @@ class Settings(BaseSettings):
     MAX_FILE_SIZE_MB: int = 25
     MAX_PREGUNTAS_SESION: int = 2
 
+    # Gemini Vision API
+    GEMINI_API_KEY: str = ""
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [origin.strip() for origin in self.CORS_ORIGINS.split(",")]

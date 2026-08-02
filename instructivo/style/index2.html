@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AV Electronics - Sistema Cotizador IA & Design System</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        /* ==========================================
+            VARIABLES Y PALETA AV ELECTRONICS
+            ========================================== */
+        :root {
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --primary-light: rgba(37, 99, 235, 0.1);
+            --secondary: #06b6d4;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            
+            --bg-body: #090d16;
+            --bg-card: #111827;
+            --bg-sidebar: #0d1322;
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            --border-color: #1f2937;
+            
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 20px;
+            --transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            --shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.6);
+            --shadow-lg: 0 10px 30px -4px rgba(0, 0, 0, 0.8);
+        }
+
+        [data-theme="light"] {
+            --bg-body: #f1f5f9;
+            --bg-card: #ffffff;
+            --bg-sidebar: #ffffff;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --border-color: #e2e8f0;
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --primary-light: rgba(37, 99, 235, 0.08);
+            --shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
+            --shadow-lg: 0 10px 30px -4px rgba(0, 0, 0, 0.08);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            color: var(--text-main);
+            background-color: var(--bg-body);
+            line-height: 1.6;
+            padding: 24px;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        .app-layout {
+            display: flex;
+            max-width: 1400px;
+            margin: 0 auto;
+            gap: 24px;
+            align-items: flex-start;
+        }
+
+        /* Sidebar Navegación */
+        .sidebar {
+            width: 280px;
+            background: var(--bg-sidebar);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            position: sticky;
+            top: 24px;
+            box-shadow: var(--shadow);
+        }
+
+        .sidebar h3 {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-muted);
+            margin-bottom: 16px;
+        }
+
+        .sidebar ul {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .sidebar button, .sidebar a {
+            text-decoration: none;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            font-weight: 500;
+            padding: 10px 14px;
+            border-radius: var(--radius-sm);
+            display: block;
+            background: transparent;
+            border: none;
+            width: 100%;
+            text-align: left;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .sidebar button:hover, .sidebar button.active {
+            background: var(--primary-light);
+            color: var(--primary);
+        }
+
+        /* Contenido Principal */
+        .main-content {
+            flex: 1;
+            width: 100%;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            padding: 32px;
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-lg);
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 32px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 20px;
+        }
+
+        .brand-badge {
+            background: var(--primary-light);
+            color: var(--primary);
+            font-size: 0.7rem;
+            font-weight: 700;
+            padding: 4px 8px;
+            border-radius: 4px;
+            text-transform: uppercase;
+            display: inline-block;
+            margin-bottom: 6px;
+        }
+
+        h1 { font-size: 1.8rem; font-weight: 700; }
+
+        .theme-toggle-btn {
+            background: var(--bg-body);
+            border: 1px solid var(--border-color);
+            padding: 8px 14px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            color: var(--text-main);
+            font-size: 0.85rem;
+            font-family: inherit;
+            font-weight: 600;
+            transition: var(--transition);
+        }
+        .theme-toggle-btn:hover { border-color: var(--primary); }
+
+        /* Vistas y Secciones */
+        .app-view { display: none; }
+        .app-view.active { display: block; }
+
+        h2 {
+            font-size: 1.3rem;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--secondary);
+        }
+
+        /* Componentes Comunes */
+        .btn {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-weight: 600;
+            padding: 10px 18px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            border: 1px solid transparent;
+            transition: var(--transition);
+            font-size: 0.9rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn-primary { background-color: var(--primary); color: white; }
+        .btn-primary:hover { background-color: var(--primary-hover); }
+        .btn-secondary { background-color: transparent; border-color: var(--border-color); color: var(--text-main); }
+        .btn-secondary:hover { border-color: var(--primary); color: var(--primary); }
+
+        .form-group { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+        label { font-size: 0.85rem; font-weight: 600; }
+        input, select, textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            background: var(--bg-body);
+            color: var(--text-main);
+            font-family: inherit;
+            outline: none;
+            transition: var(--transition);
+        }
+        input:focus, select:focus, textarea:focus { border-color: var(--primary); }
+
+        /* Chat */
+        .chat-box {
+            background: var(--bg-body);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            height: 350px;
+            padding: 16px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        .chat-msg {
+            padding: 10px 14px;
+            border-radius: var(--radius-sm);
+            max-width: 80%;
+            font-size: 0.9rem;
+        }
+        .chat-msg.bot { background: var(--border-color); align-self: flex-start; color: var(--text-main); }
+        .chat-msg.user { background: var(--primary); color: white; align-self: flex-end; }
+
+        /* Tablas */
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid var(--border-color); font-size: 0.9rem; }
+        th { color: var(--text-muted); font-weight: 600; }
+
+        /* Login Center Box */
+        .login-wrapper {
+            max-width: 400px;
+            margin: 60px auto;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            padding: 32px;
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-lg);
+        }
+
+        /* Estilos del Design System Extra */
+        .color-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .color-card {
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border-color);
+            overflow: hidden;
+            background: var(--bg-body);
+        }
+        .color-preview { height: 60px; }
+        .color-desc { padding: 10px; font-size: 0.8rem; }
+        .color-desc strong { display: block; }
+        .color-desc span { color: var(--text-muted); font-family: monospace; font-size: 0.75rem; }
+    </style>
+</head>
+<body data-theme="dark">
+
+    <!-- Layout Principal del Sistema (Oculto hasta iniciar sesión) -->
+    <div class="app-layout" id="mainLayout" style="display: none;">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <h3>AV Electronics</h3>
+            <ul>
+                <li><button onclick="switchView('design-system')" class="active" id="nav-design-system">🎨 Design System</button></li>
+                <li><button onclick="switchView('carga')" id="nav-carga">📦 Carga BOM & Ingesta</button></li>
+                <li><button onclick="switchView('cotizador')" id="nav-cotizador">⚡ Cotizador Pro</button></li>
+                <li><button onclick="switchView('chat')" id="nav-chat">💬 Asistente IA & Chat</button></li>
+                <li><button onclick="switchView('historial')" id="nav-historial">📊 Historial Cotizaciones</button></li>
+                <li><button onclick="switchView('admin')" id="nav-admin">🏬 Tiendas & Catálogo</button></li>
+                <li><button onclick="logout()" style="color: var(--danger); margin-top: 20px;">🔒 Cerrar Sesión</button></li>
+            </ul>
+        </aside>
+
+        <!-- Contenido Dinámico -->
+        <main class="main-content">
+            <header>
+                <div>
+                    <span class="brand-badge">Sucursal Quito - Ecuador</span>
+                    <h1 id="viewTitle">Design System & UI Kit</h1>
+                </div>
+                <button class="theme-toggle-btn" onclick="toggleTheme()">☀️ Cambiar Tema</button>
+            </header>
+
+            <!-- VISTA 0: DESIGN SYSTEM / GUÍA DE ESTILOS -->
+            <section id="view-design-system" class="app-view active">
+                <h2>Paleta de Colores Oficial</h2>
+                <div class="color-grid">
+                    <div class="color-card">
+                        <div class="color-preview" style="background: var(--primary);"></div>
+                        <div class="color-desc"><strong>Primary</strong><span>#2563eb</span></div>
+                    </div>
+                    <div class="color-card">
+                        <div class="color-preview" style="background: var(--secondary);"></div>
+                        <div class="color-desc"><strong>Secondary</strong><span>#06b6d4</span></div>
+                    </div>
+                    <div class="color-card">
+                        <div class="color-preview" style="background: var(--success);"></div>
+                        <div class="color-desc"><strong>Success</strong><span>#10b981</span></div>
+                    </div>
+                    <div class="color-card">
+                        <div class="color-preview" style="background: var(--warning);"></div>
+                        <div class="color-desc"><strong>Warning</strong><span>#f59e0b</span></div>
+                    </div>
+                    <div class="color-card">
+                        <div class="color-preview" style="background: var(--danger);"></div>
+                        <div class="color-desc"><strong>Danger</strong><span>#ef4444</span></div>
+                    </div>
+                </div>
+
+                <h2>Tipografía y Estilos Globales</h2>
+                <div style="background: var(--bg-body); border: 1px solid var(--border-color); padding: 16px; border-radius: var(--radius-sm); margin-bottom: 24px;">
+                    <p style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.1rem; font-weight: 700; margin-bottom: 8px;">Tipografía Principal: Plus Jakarta Sans</p>
+                    <p style="color: var(--text-muted); font-size: 0.9rem;">Pesos integrados: 300 (Light), 400 (Regular), 500 (Medium), 600 (SemiBold), 700 (Bold). Optimizado para interfaces de hardware y tableros IoT.</p>
+                </div>
+
+                <h2>Elevaciones y Radios de Borde</h2>
+                <div style="display: flex; gap: 16px; flex-wrap: wrap;">
+                    <div style="background: var(--bg-body); border: 1px solid var(--border-color); padding: 16px; border-radius: var(--radius-sm); flex: 1; min-width: 200px;">
+                        <strong>Radio Small (sm)</strong>: 8px<br><span style="color: var(--text-muted); font-size: 0.8rem;">Inputs, botones y alertas.</span>
+                    </div>
+                    <div style="background: var(--bg-body); border: 1px solid var(--border-color); padding: 16px; border-radius: var(--radius-md); flex: 1; min-width: 200px;">
+                        <strong>Radio Medium (md)</strong>: 12px<br><span style="color: var(--text-muted); font-size: 0.8rem;">Tarjetas y contenedores internos.</span>
+                    </div>
+                    <div style="background: var(--bg-body); border: 1px solid var(--border-color); padding: 16px; border-radius: var(--radius-lg); flex: 1; min-width: 200px;">
+                        <strong>Radio Large (lg)</strong>: 20px<br><span style="color: var(--text-muted); font-size: 0.8rem;">Paneles principales y modales.</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VISTA 1: CARGA DE BOM -->
+            <section id="view-carga" class="app-view">
+                <h2>Ingesta de Lista de Materiales (BOM)</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                    <div style="border: 2px dashed var(--border-color); border-radius: var(--radius-md); padding: 32px; text-align: center; background: var(--bg-body);">
+                        <svg style="margin: 0 auto 12px; width: 48px; height: 48px; color: var(--primary);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+                        <p style="font-weight: 600; margin-bottom: 4px;">Arrastra tu BOM (PDF, Excel, CSV)</p>
+                        <p style="color: var(--text-muted); font-size: 0.8rem;">Reconocimiento automático de componentes electrónicos y partes.</p>
+                    </div>
+                    <div class="form-group">
+                        <label>Ingreso Rápido de Requerimiento</label>
+                        <textarea rows="4" placeholder="Ej: 1x Raspberry Pi 5 8GB, 2x Arduino Uno R4, 1x CNC Shield V4..."></textarea>
+                        <button class="btn btn-primary" style="margin-top: 8px;">⚡ Cotizar con Inventario AV Electronics</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VISTA 2: COTIZADOR PRO -->
+            <section id="view-cotizador" class="app-view">
+                <h2>Módulo de Cotización de Hardware</h2>
+                <div class="form-group">
+                    <label>Proyecto / Cliente</label>
+                    <input type="text" placeholder="Ej. Automatización de Invernadero IoT">
+                </div>
+                <div class="form-group">
+                    <label>Seleccionar Componente / Catálogo WooCommerce</label>
+                    <select>
+                        <option>Raspberry Pi 5 8GB - $276.00</option>
+                        <option>Arduino Uno R4 - $52.00</option>
+                        <option>CNC Shield V4 - $2.90</option>
+                        <option>Sensor de Humedad DHT22 - $4.50</option>
+                    </select>
+                </div>
+                <button class="btn btn-primary">➕ Agregar a la Cotización</button>
+
+                <div style="margin-top: 24px;">
+                    <h3 style="font-size: 1rem; margin-bottom: 12px; color: var(--text-main);">Ítems Agregados Recientemente</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Componente</th>
+                                <th>Cant.</th>
+                                <th>Precio Unitario</th>
+                                <th>Subtotal</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Raspberry Pi 5 8GB</td>
+                                <td>1</td>
+                                <td style="color: var(--secondary); font-weight: 600;">$276.00</td>
+                                <td>$276.00</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- VISTA 3: CHAT IA -->
+            <section id="view-chat" class="app-view">
+                <h2>Asistente Virtual IA & Consultas Técnicas</h2>
+                <div class="chat-box" id="chatContainer">
+                    <div class="chat-msg bot">¡Hola! Soy el asistente técnico de AV Electronics. ¿Qué componentes buscas cotizar u optimizar hoy?</div>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <input type="text" id="chatInput" placeholder="Escribe tu requerimiento (Ej. ¿Tienen stock de Arduino Uno R4?)...">
+                    <button class="btn btn-primary" onclick="sendMessage()">Enviar</button>
+                </div>
+            </section>
+
+            <!-- VISTA 4: HISTORIAL -->
+            <section id="view-historial" class="app-view">
+                <h2>Historial de Cotizaciones Generadas</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Cliente / Proyecto</th>
+                            <th>Fecha</th>
+                            <th>Total</th>
+                            <th>Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>#COT-2026-0801</td>
+                            <td>Laboratorio EPN</td>
+                            <td>04/06/2026</td>
+                            <td>$328.00</td>
+                            <td><span style="color: var(--success); font-weight: 600;">Aprobado</span></td>
+                        </tr>
+                        <tr>
+                            <td>#COT-2026-0802</td>
+                            <td>Robótica Pichincha</td>
+                            <td>02/08/2026</td>
+                            <td>$54.90</td>
+                            <td><span style="color: var(--warning); font-weight: 600;">Pendiente</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <!-- VISTA 5: ADMIN Y TIENDAS -->
+            <section id="view-admin" class="app-view">
+                <h2>Gestión de Proveedores y Tiendas (avelectronics.cc)</h2>
+                <p style="color: var(--text-muted); margin-bottom: 16px;">Monitoreo y scraping de precios en tiempo real para WooCommerce.</p>
+                <button class="btn btn-primary">🔄 Sincronizar Catálogo Completo</button>
+            </section>
+        </main>
+    </div>
+
+    <!-- VISTA LOGIN -->
+    <div id="loginView" class="login-wrapper">
+        <div style="text-align: center; margin-bottom: 24px;">
+            <span class="brand-badge">AV Electronics</span>
+            <h2 style="border:none; margin-top: 10px; font-size: 1.5rem;">Iniciar Sesión</h2>
+        </div>
+        <div class="form-group">
+            <label>Correo Electrónico</label>
+            <input type="text" id="loginEmail" value="ventas@avelectronics.cc">
+        </div>
+        <div class="form-group">
+            <label>Contraseña</label>
+            <input type="password" id="loginPass" value="********">
+        </div>
+        <button class="btn btn-primary" style="width: 100%; justify-content: center; margin-top: 10px;" onclick="login()">Ingresar al Sistema</button>
+    </div>
+
+    <!-- Lógica del Sistema -->
+    <script>
+        function login() {
+            document.getElementById('loginView').style.display = 'none';
+            document.getElementById('mainLayout').style.display = 'flex';
+        }
+
+        function logout() {
+            document.getElementById('mainLayout').style.display = 'none';
+            document.getElementById('loginView').style.display = 'block';
+        }
+
+        function switchView(viewName) {
+            document.querySelectorAll('.app-view').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.sidebar button').forEach(el => el.classList.remove('active'));
+            
+            document.getElementById('view-' + viewName).classList.add('active');
+            document.getElementById('nav-' + viewName).classList.add('active');
+        }
+
+        function toggleTheme() {
+            const body = document.body;
+            body.setAttribute('data-theme', body.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+        }
+
+        function sendMessage() {
+            const input = document.getElementById('chatInput');
+            const container = document.getElementById('chatContainer');
+            if(!input.value.trim()) return;
+
+            const userMsg = document.createElement('div');
+            userMsg.className = 'chat-msg user';
+            userMsg.textContent = input.value;
+            container.appendChild(userMsg);
+
+            const textVal = input.value;
+            input.value = '';
+
+            setTimeout(() => {
+                const botMsg = document.createElement('div');
+                botMsg.className = 'chat-msg bot';
+                botMsg.textContent = "Analizando componente para: '" + textVal + "'. Stock y precios verificados en avelectronics.cc.";
+                container.appendChild(botMsg);
+                container.scrollTop = container.scrollHeight;
+            }, 600);
+            container.scrollTop = container.scrollHeight;
+        }
+    </script>
+</body>
+</html>
