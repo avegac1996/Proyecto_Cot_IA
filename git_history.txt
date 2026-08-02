@@ -1,1 +1,2 @@
 jhossua - feat: mejorar UI de tarjeta de productos
+jhossua - fix: corregir calculo de subtotal en carrito
