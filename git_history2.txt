@@ -22,3 +22,4 @@ Pool - fix: corregir overflow en botones de paginacion
 Pool - feat: agregar contador de resultados filtrados
 Pool - refactor: limpiar console.log en produccion
 Pool - fix: corregir z-index de datepicker
+Pool - feat: agregar animacion de fade en paginacion
