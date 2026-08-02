@@ -29,3 +29,4 @@ Pool - feat: agregar skeleton loading en busqueda
 Pool - refactor: extraer componente FiltroFecha
 Pool - fix: corregir reset de pagina al cambiar filtro
 Gabriela - feat: agregar resumen de totales en historial
+Gabriela - refactor: optimizar query de conteo
