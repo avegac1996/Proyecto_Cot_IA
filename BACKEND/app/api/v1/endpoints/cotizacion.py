@@ -225,8 +225,6 @@ async def listar_cotizaciones(
     base = select(Cotizacion, Usuario.username).join(
         Usuario, Cotizacion.usuario_id == Usuario.id
     )
-    if user.rol != "admin":
-        base = base.where(Cotizacion.usuario_id == user.id)
 
     if q:
         filtro = f"%{q.lower()}%"
@@ -285,7 +283,7 @@ async def listar_cotizaciones(
 async def _get_cotizacion_by_id(cotizacion_id: int, user: Usuario, db: AsyncSession) -> Cotizacion:
     result = await db.execute(select(Cotizacion).where(Cotizacion.id == cotizacion_id))
     cotizacion = result.scalar_one_or_none()
-    if cotizacion is None or (cotizacion.usuario_id != user.id and user.rol != "admin"):
+    if cotizacion is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={"code": "COTIZACION_NOT_FOUND", "message": "Cotización no encontrada"},
@@ -350,7 +348,7 @@ async def seleccionar_proveedor(
 
     result = await db.execute(select(Cotizacion).where(Cotizacion.id == item.cotizacion_id))
     cotizacion = result.scalar_one_or_none()
-    if cotizacion is None or (cotizacion.usuario_id != user.id and user.rol != "admin"):
+    if cotizacion is None:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail={"code": "FORBIDDEN", "message": "No tiene permiso sobre esta cotización"},
