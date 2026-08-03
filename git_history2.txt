@@ -57,3 +57,4 @@ jorge - refactor: simplificar manejo de errores
 jorge - fix: corregir estilo de inputs en mobile
 jorge - feat: agregar soporte para teclado en paginacion
 jorge - docs: finalizar documentacion de historial
+jorge - 
