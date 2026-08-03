@@ -68,7 +68,7 @@ class WaybackScraper(BaseScraper):
         stock_in_classes = self.selectores.get("stock_in_classes", True)
 
         try:
-            async with httpx.AsyncClient(headers=HEADERS, timeout=60, follow_redirects=True) as client:
+            async with httpx.AsyncClient(headers=HEADERS, timeout=15, follow_redirects=True) as client:
                 # Usar CDX API para listar snapshots, con fallback a availability API
                 timestamps: list[str] = []
                 try:

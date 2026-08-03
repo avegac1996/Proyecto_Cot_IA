@@ -38,6 +38,9 @@ class CotizacionResponse(BaseModel):
     total: Decimal
     estado: str
     fecha_creacion: datetime
+    cliente_nombre: str | None = None
+    cliente_correo: str | None = None
+    cliente_celular: str | None = None
 
     model_config = {"from_attributes": True}
 
@@ -49,6 +52,8 @@ class CotizacionListItem(BaseModel):
     total: Decimal
     total_items: int
     fecha_creacion: datetime
+    cliente_nombre: str | None = None
+    usuario_nombre: str | None = None
 
 
 class CotizacionListResponse(BaseModel):

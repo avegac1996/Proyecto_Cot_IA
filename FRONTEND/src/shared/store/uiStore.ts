@@ -7,7 +7,7 @@ interface UIState {
   toggleTheme: () => void
 }
 
-const storedTheme = (localStorage.getItem('cotia_theme') as Theme) || 'light'
+const storedTheme = (localStorage.getItem('cotia_theme') as Theme) || 'dark'
 document.documentElement.classList.toggle('dark', storedTheme === 'dark')
 
 export const useUIStore = create<UIState>((set, get) => ({

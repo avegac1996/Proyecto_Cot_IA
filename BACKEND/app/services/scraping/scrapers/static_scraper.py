@@ -16,7 +16,7 @@ from app.services.scraping.scrapers.base import BaseScraper
 
 logger = logging.getLogger(__name__)
 
-MAX_PRODUCT_PAGES = 5
+MAX_PRODUCT_PAGES = 3
 
 HEADERS = {
     "User-Agent": (
@@ -39,7 +39,7 @@ class StaticScraper(BaseScraper):
         try:
             async with httpx.AsyncClient(
                 headers=HEADERS,
-                timeout=10.0,
+                timeout=8.0,
                 follow_redirects=True,
             ) as client:
                 response = await client.get(url_busqueda)
@@ -139,7 +139,7 @@ class StaticScraper(BaseScraper):
         try:
             async with httpx.AsyncClient(
                 headers=HEADERS,
-                timeout=10.0,
+                timeout=8.0,
                 follow_redirects=True,
             ) as client:
                 response = await client.get(url)

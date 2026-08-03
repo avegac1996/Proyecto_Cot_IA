@@ -1,9 +1,27 @@
 import api from '@/shared/lib/api'
-import type { BusquedaResponse, ConfiguracionNegocio, ItemCarrito, Cotizacion, OpcionProducto } from '@/shared/types'
+import type { BusquedaResponse, ConfiguracionNegocio, ItemCarrito, Cotizacion, OpcionProducto, ResultadoComponente } from '@/shared/types'
 
 export async function buscarComponentes(texto: string): Promise<BusquedaResponse> {
   const { data } = await api.post<BusquedaResponse>('/buscar', { texto })
   return data
+}
+
+export interface MensajeChat {
+  role: 'user' | 'assistant'
+  content: string
+}
+
+export async function preguntarAgente(
+  pregunta: string,
+  resultados: ResultadoComponente[],
+  historial: MensajeChat[] = []
+): Promise<string> {
+  const { data } = await api.post<{ respuesta: string }>('/buscar/preguntar', {
+    pregunta,
+    resultados,
+    historial: historial.map((m) => ({ role: m.role, content: m.content })),
+  })
+  return data.respuesta
 }
 
 export interface ImagenResponse {
@@ -46,9 +64,15 @@ export async function actualizarMargen(margen: number): Promise<ConfiguracionNeg
   return data
 }
 
+export async function actualizarIva(iva: number): Promise<ConfiguracionNegocio> {
+  const { data } = await api.put<ConfiguracionNegocio>('/configuracion/iva', { iva })
+  return data
+}
+
 export async function crearCotizacionDesdeCarrito(
   items: ItemCarrito[],
-  cotizacionId?: number
+  cotizacionId?: number,
+  cliente?: { nombre: string; correo: string; celular: string }
 ): Promise<Cotizacion> {
   const payload = {
     items: items.map((item) => ({
@@ -62,6 +86,9 @@ export async function crearCotizacionDesdeCarrito(
       url: item.opcion_seleccionada.url,
     })),
     cotizacion_id: cotizacionId ?? null,
+    cliente_nombre: cliente?.nombre || null,
+    cliente_correo: cliente?.correo || null,
+    cliente_celular: cliente?.celular || null,
   }
   const { data } = await api.post<Cotizacion>('/cotizacion/desde-carrito', payload)
   return data

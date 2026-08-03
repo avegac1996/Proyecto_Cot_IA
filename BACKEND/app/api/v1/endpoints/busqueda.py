@@ -1,12 +1,14 @@
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
+import asyncio
 
 from app.api.deps import get_current_user
 from app.core.config import settings
 from app.core.database import get_db
 from app.models.usuario import Usuario
 from app.services.gemini.vision import identificar_componentes_imagen
+from app.services.gemini.chat import preguntar_agente
 from app.services.ingesta.filtro import extraer_componentes
 from app.services.scraping.busqueda import buscar_por_termino_priorizado
 from app.services.scraping.engine import buscar_por_termino
@@ -70,13 +72,11 @@ async def buscar_componentes(
     3. Retorna opciones por componente, AV Electronics primero (sin margen)
     """
     componentes = extraer_componentes(body.texto)
-    resultados = []
-    for comp in componentes:
-        resultado = await buscar_por_termino_priorizado(
-            db, comp["termino"], comp["cantidad"]
-        )
-        resultados.append(resultado)
-    return BusquedaResponse(resultados=resultados)
+    resultados = await asyncio.gather(*[
+        buscar_por_termino_priorizado(db, comp["termino"], comp["cantidad"])
+        for comp in componentes
+    ])
+    return BusquedaResponse(resultados=list(resultados))
 
 
 @router.post("/alternativas", response_model=AlternativaResponse)
@@ -133,10 +133,13 @@ async def buscar_alternativas(
     vistos = set()
     alternativas = []
 
-    for termino in terminos_busqueda:
+    resultados_busqueda = await asyncio.gather(*[
+        buscar_por_termino(db, termino) for termino in terminos_busqueda
+    ])
+
+    for resultado in resultados_busqueda:
         if len(alternativas) >= 10:
             break
-        resultado = await buscar_por_termino(db, termino)
         for op in resultado.get("opciones", []):
             if op["tienda"] == body.tienda_excluir:
                 continue
@@ -217,3 +220,48 @@ async def identificar_imagen(
     componentes = [line.strip() for line in texto.split("\n") if line.strip()]
 
     return ImagenResponse(texto=texto, componentes=componentes)
+
+
+class PreguntaRequest(BaseModel):
+    pregunta: str
+    resultados: list[dict]
+    historial: list[dict] | None = None
+
+
+class PreguntaResponse(BaseModel):
+    respuesta: str
+
+
+@router.post("/preguntar", response_model=PreguntaResponse)
+async def preguntar(
+    body: PreguntaRequest,
+    user: Usuario = Depends(get_current_user),
+):
+    """Permite al usuario hacer preguntas sobre los resultados de búsqueda
+    usando Google Gemini como asistente experto en electrónica."""
+
+    if not settings.GEMINI_API_KEY:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={"code": "GEMINI_NOT_CONFIGURED", "message": "Gemini API no configurada"},
+        )
+
+    if not body.pregunta.strip():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"code": "EMPTY_QUESTION", "message": "La pregunta no puede estar vacía"},
+        )
+
+    try:
+        respuesta = await preguntar_agente(
+            pregunta=body.pregunta,
+            resultados=body.resultados,
+            historial=body.historial,
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail={"code": "GEMINI_ERROR", "message": str(exc)},
+        )
+
+    return PreguntaResponse(respuesta=respuesta)

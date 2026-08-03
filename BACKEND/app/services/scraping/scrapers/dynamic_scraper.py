@@ -11,7 +11,7 @@ from app.services.scraping.scrapers.base import BaseScraper
 
 logger = logging.getLogger(__name__)
 
-MAX_PRODUCT_PAGES = 5
+MAX_PRODUCT_PAGES = 3
 
 
 class DynamicScraper(BaseScraper):
@@ -31,7 +31,7 @@ class DynamicScraper(BaseScraper):
             async with async_playwright() as p:
                 browser = await p.chromium.launch(headless=True)
                 page = await browser.new_page()
-                await page.goto(url_busqueda, wait_until="networkidle", timeout=15000)
+                await page.goto(url_busqueda, wait_until="domcontentloaded", timeout=10000)
 
                 card_selector = self.selectores.get("product_card", "")
                 price_selector = self.selectores.get("price", "")
@@ -41,7 +41,7 @@ class DynamicScraper(BaseScraper):
 
                 if card_selector:
                     try:
-                        await page.wait_for_selector(card_selector, timeout=10000)
+                        await page.wait_for_selector(card_selector, timeout=5000)
                     except Exception:
                         logger.info("No se encontraron productos dinámicos en %s", self.nombre_tienda)
                         await browser.close()
@@ -129,7 +129,7 @@ class DynamicScraper(BaseScraper):
         """Visita la página de un producto con Playwright y extrae precio/disponibilidad."""
         page = await browser.new_page()
         try:
-            await page.goto(url, wait_until="networkidle", timeout=15000)
+            await page.goto(url, wait_until="domcontentloaded", timeout=10000)
 
             precio = None
             try:

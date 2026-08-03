@@ -79,6 +79,9 @@ export interface Cotizacion {
   total: string
   estado: string
   fecha_creacion: string
+  cliente_nombre: string | null
+  cliente_correo: string | null
+  cliente_celular: string | null
 }
 
 export interface CotizacionListItem {
@@ -88,6 +91,8 @@ export interface CotizacionListItem {
   total: string
   total_items: number
   fecha_creacion: string
+  cliente_nombre: string | null
+  usuario_nombre: string | null
 }
 
 export interface OpcionProducto {
@@ -121,6 +126,7 @@ export interface BusquedaResponse {
 export interface ConfiguracionNegocio {
   margen_competencia: number
   tienda_propia: string
+  iva: number
 }
 
 export interface ItemCarrito {

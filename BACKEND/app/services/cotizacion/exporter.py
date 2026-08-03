@@ -1,6 +1,7 @@
 """Generación de cotizaciones en PDF y Excel."""
 
 import io
+import os
 from datetime import datetime
 from decimal import Decimal
 
@@ -16,9 +17,23 @@ from reportlab.platypus import (
     Spacer,
     Table,
     TableStyle,
+    Image as RLImage,
 )
 
 from app.models.cotizacion import Cotizacion
+
+# Brand colors
+BRAND_PRIMARY = colors.HexColor("#06b6d4")
+BRAND_PRIMARY_DARK = colors.HexColor("#0891b2")
+BRAND_PRIMARY_LIGHT = colors.HexColor("#cffafe")
+BRAND_BG_LIGHT = colors.HexColor("#f0f9ff")
+BRAND_TEXT = colors.HexColor("#0f172a")
+BRAND_TEXT_MUTED = colors.HexColor("#64748b")
+BRAND_BORDER = colors.HexColor("#e2e8f0")
+BRAND_DANGER = colors.HexColor("#ef4444")
+BRAND_SUCCESS = colors.HexColor("#10b981")
+
+LOGO_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "static", "logo.png")
 
 
 def _money(value: Decimal | float | int | None) -> str:
@@ -27,157 +42,241 @@ def _money(value: Decimal | float | int | None) -> str:
     return f"${Decimal(str(value)):.2f}"
 
 
-def generate_pdf(cotizacion: Cotizacion) -> bytes:
+def generate_pdf(cotizacion: Cotizacion, iva_pct: float = 15.0) -> bytes:
     """Genera un PDF de la cotización y retorna los bytes."""
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(
         buffer,
         pagesize=letter,
-        leftMargin=0.5 * inch,
-        rightMargin=0.5 * inch,
+        leftMargin=0.6 * inch,
+        rightMargin=0.6 * inch,
         topMargin=0.5 * inch,
         bottomMargin=0.5 * inch,
     )
 
     styles = getSampleStyleSheet()
-    title_style = ParagraphStyle(
-        "CustomTitle",
-        parent=styles["Title"],
-        fontSize=20,
-        textColor=colors.HexColor("#1e40af"),
-        spaceAfter=4,
+
+    # --- Styles ---
+    brand_title = ParagraphStyle(
+        "BrandTitle",
+        parent=styles["Normal"],
+        fontSize=22,
+        fontName="Helvetica-Bold",
+        textColor=BRAND_TEXT,
+        spaceAfter=2,
     )
-    subtitle_style = ParagraphStyle(
-        "CustomSubtitle",
+    brand_subtitle = ParagraphStyle(
+        "BrandSubtitle",
         parent=styles["Normal"],
         fontSize=10,
-        textColor=colors.grey,
-        spaceAfter=16,
+        textColor=BRAND_TEXT_MUTED,
+        spaceAfter=0,
+    )
+    info_label = ParagraphStyle(
+        "InfoLabel",
+        parent=styles["Normal"],
+        fontSize=8,
+        fontName="Helvetica-Bold",
+        textColor=BRAND_TEXT_MUTED,
+        spaceAfter=1,
+    )
+    info_value = ParagraphStyle(
+        "InfoValue",
+        parent=styles["Normal"],
+        fontSize=10,
+        textColor=BRAND_TEXT,
+        spaceAfter=0,
     )
     section_style = ParagraphStyle(
         "Section",
-        parent=styles["Heading2"],
-        fontSize=13,
-        textColor=colors.HexColor("#1e40af"),
-        spaceBefore=12,
-        spaceAfter=6,
+        parent=styles["Normal"],
+        fontSize=11,
+        fontName="Helvetica-Bold",
+        textColor=BRAND_PRIMARY_DARK,
+        spaceBefore=16,
+        spaceAfter=8,
     )
-
-    elements = []
-
-    # Header
-    elements.append(Paragraph("AV Electronics — Cotización de Componentes Electrónicos", title_style))
-    fecha_str = cotizacion.fecha_creacion.strftime("%d/%m/%Y %H:%M") if cotizacion.fecha_creacion else ""
-    elements.append(Paragraph(f"Cotización #{cotizacion.id} · {fecha_str}", subtitle_style))
-
-    # Info section
-    info_data = [
-        ["Estado:", cotizacion.estado.upper()],
-        ["Total:", _money(cotizacion.total)],
-    ]
-    info_table = Table(info_data, colWidths=[1.2 * inch, 3 * inch])
-    info_table.setStyle(
-        TableStyle([
-            ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
-            ("FONTSIZE", (0, 0), (-1, -1), 10),
-            ("TEXTCOLOR", (0, 0), (0, -1), colors.HexColor("#1e40af")),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
-        ])
-    )
-    elements.append(info_table)
-    elements.append(Spacer(1, 16))
-
-    # Items table
-    elements.append(Paragraph("Detalle de Componentes", section_style))
-
     cell_style = ParagraphStyle(
         "Cell",
         parent=styles["Normal"],
         fontSize=9,
-        leading=11,
+        leading=12,
+        textColor=BRAND_TEXT,
     )
-    cell_center = ParagraphStyle(
-        "CellCenter",
-        parent=cell_style,
+    cell_center = ParagraphStyle("CellCenter", parent=cell_style, alignment=1)
+    cell_right = ParagraphStyle("CellRight", parent=cell_style, alignment=2)
+    footer_style = ParagraphStyle(
+        "Footer",
+        parent=styles["Normal"],
+        fontSize=8,
+        textColor=BRAND_TEXT_MUTED,
         alignment=1,
     )
-    cell_right = ParagraphStyle(
-        "CellRight",
-        parent=cell_style,
-        alignment=2,
+    total_label_style = ParagraphStyle(
+        "TotalLabel",
+        parent=cell_right,
+        fontName="Helvetica-Bold",
+        fontSize=11,
+        textColor=BRAND_TEXT,
     )
+    total_value_style = ParagraphStyle(
+        "TotalValue",
+        parent=cell_right,
+        fontName="Helvetica-Bold",
+        fontSize=13,
+        textColor=BRAND_PRIMARY_DARK,
+    )
+
+    elements = []
+
+    # --- Header with logo ---
+    logo_flow = None
+    if os.path.exists(LOGO_PATH):
+        try:
+            logo_flow = RLImage(LOGO_PATH, width=1.4 * inch, height=1.4 * inch, kind="proportional")
+        except Exception:
+            logo_flow = None
+
+    header_left = []
+    header_left.append(Spacer(1, 4))
+    header_left.append(Paragraph("Sistema Inteligente de Cotización", brand_subtitle))
+    header_left.append(Paragraph("Componentes Electrónicos", brand_subtitle))
+
+    if logo_flow:
+        header_table = Table(
+            [[logo_flow, header_left]],
+            colWidths=[1.8 * inch, 5.0 * inch],
+        )
+        header_table.setStyle(TableStyle([
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 0),
+            ("RIGHTPADDING", (0, 0), (0, 0), 16),
+            ("RIGHTPADDING", (1, 0), (1, 0), 0),
+        ]))
+        elements.append(header_table)
+    else:
+        elements.extend(header_left)
+
+    # Color bar separator
+    bar = Table([[""]], colWidths=[7.0 * inch], rowHeights=[4])
+    bar.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, -1), BRAND_PRIMARY)]))
+    elements.append(Spacer(1, 8))
+    elements.append(bar)
+    elements.append(Spacer(1, 12))
+
+    # --- Client data ---
+    if cotizacion.cliente_nombre or cotizacion.cliente_correo or cotizacion.cliente_celular:
+        cliente_lines = []
+        if cotizacion.cliente_nombre:
+            cliente_lines.append(Paragraph(
+                f"<b>Cliente:</b> {cotizacion.cliente_nombre}",
+                ParagraphStyle("ClienteData", parent=styles["Normal"], fontSize=10, textColor=BRAND_TEXT, spaceAfter=2),
+            ))
+        if cotizacion.cliente_correo:
+            cliente_lines.append(Paragraph(
+                f"<b>Correo:</b> {cotizacion.cliente_correo}",
+                ParagraphStyle("ClienteData2", parent=styles["Normal"], fontSize=10, textColor=BRAND_TEXT, spaceAfter=2),
+            ))
+        if cotizacion.cliente_celular:
+            cliente_lines.append(Paragraph(
+                f"<b>Celular:</b> {cotizacion.cliente_celular}",
+                ParagraphStyle("ClienteData3", parent=styles["Normal"], fontSize=10, textColor=BRAND_TEXT, spaceAfter=2),
+            ))
+        cliente_box = Table([[cliente_lines]], colWidths=[7.0 * inch])
+        cliente_box.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, -1), BRAND_BG_LIGHT),
+            ("BOX", (0, 0), (-1, -1), 0.5, BRAND_BORDER),
+            ("LEFTPADDING", (0, 0), (-1, -1), 12),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 12),
+            ("TOPPADDING", (0, 0), (-1, -1), 8),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+        ]))
+        elements.append(cliente_box)
+        elements.append(Spacer(1, 16))
+
+    # --- Items table ---
 
     def _p(text: str, style: ParagraphStyle = cell_style) -> Paragraph:
         escaped = (text or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
         return Paragraph(escaped, style)
 
+    hdr_style = ParagraphStyle("Hdr", parent=cell_style, fontName="Helvetica-Bold", textColor=colors.white, fontSize=9)
+    hdr_center = ParagraphStyle("HdrC", parent=cell_center, fontName="Helvetica-Bold", textColor=colors.white, fontSize=9)
+    hdr_right = ParagraphStyle("HdrR", parent=cell_right, fontName="Helvetica-Bold", textColor=colors.white, fontSize=9)
+
     header = [
-        Paragraph("Producto", ParagraphStyle("Hdr", parent=cell_style, fontName="Helvetica-Bold", textColor=colors.white)),
-        Paragraph("Cant.", ParagraphStyle("HdrC", parent=cell_center, fontName="Helvetica-Bold", textColor=colors.white)),
-        Paragraph("Proveedor", ParagraphStyle("HdrP", parent=cell_style, fontName="Helvetica-Bold", textColor=colors.white)),
-        Paragraph("P. Unit.", ParagraphStyle("HdrR", parent=cell_right, fontName="Helvetica-Bold", textColor=colors.white)),
-        Paragraph("Subtotal", ParagraphStyle("HdrR2", parent=cell_right, fontName="Helvetica-Bold", textColor=colors.white)),
-        Paragraph("Estado", ParagraphStyle("HdrC2", parent=cell_center, fontName="Helvetica-Bold", textColor=colors.white)),
+        Paragraph("Producto", hdr_style),
+        Paragraph("Cant.", hdr_center),
+        Paragraph("P. Unit.", hdr_right),
+        Paragraph("Subtotal", hdr_right),
     ]
     rows = [header]
     for item in cotizacion.items:
         rows.append([
             _p(item.producto_nombre),
             _p(str(item.cantidad), cell_center),
-            _p(item.proveedor or "—"),
             _p(_money(item.precio_unitario) if item.disponible else "—", cell_right),
             _p(_money(item.subtotal) if item.disponible else "—", cell_right),
-            _p("Disponible" if item.disponible else "Sin datos", cell_center),
         ])
+
+    # Subtotal, IVA, Total rows
+    subtotal = cotizacion.total
+    iva_amount = (subtotal * Decimal(str(iva_pct)) / Decimal("100")).quantize(Decimal("0.01"))
+    total_con_iva = (subtotal + iva_amount).quantize(Decimal("0.01"))
+
     rows.append([
-        "",
-        "",
-        "",
-        Paragraph("TOTAL:", ParagraphStyle("TotalLbl", parent=cell_right, fontName="Helvetica-Bold", fontSize=11)),
-        Paragraph(_money(cotizacion.total), ParagraphStyle("TotalVal", parent=cell_right, fontName="Helvetica-Bold", fontSize=11, textColor=colors.HexColor("#1e40af"))),
-        "",
+        "", "",
+        Paragraph("Subtotal:", total_label_style),
+        Paragraph(_money(subtotal), total_value_style),
+    ])
+    rows.append([
+        "", "",
+        Paragraph(f"IVA ({iva_pct:.0f}%):", total_label_style),
+        Paragraph(_money(iva_amount), total_value_style),
+    ])
+    rows.append([
+        "", "",
+        Paragraph("TOTAL:", total_label_style),
+        Paragraph(_money(total_con_iva), total_value_style),
     ])
 
-    col_widths = [2.2 * inch, 0.5 * inch, 1.2 * inch, 0.9 * inch, 0.9 * inch, 0.8 * inch]
+    col_widths = [3.5 * inch, 0.7 * inch, 1.2 * inch, 1.2 * inch]
     table = Table(rows, colWidths=col_widths, repeatRows=1)
-    table.setStyle(
-        TableStyle([
-            # Header
-            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1e40af")),
-            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-            ("FONTSIZE", (0, 0), (-1, 0), 9),
-            ("ALIGN", (1, 0), (1, -1), "CENTER"),
-            ("ALIGN", (3, 0), (4, -1), "RIGHT"),
-            ("ALIGN", (5, 0), (5, -1), "CENTER"),
-            # Body
-            ("FONTSIZE", (0, 1), (-1, -2), 9),
-            ("ROWBACKGROUNDS", (0, 1), (-1, -2), [colors.white, colors.HexColor("#f1f5f9")]),
-            ("GRID", (0, 0), (-1, -2), 0.5, colors.HexColor("#cbd5e1")),
-            # Total row
-            ("BACKGROUND", (0, -1), (-1, -1), colors.HexColor("#f1f5f9")),
-            ("FONTNAME", (3, -1), (-1, -1), "Helvetica-Bold"),
-            ("FONTSIZE", (0, -1), (-1, -1), 11),
-            ("TEXTCOLOR", (4, -1), (4, -1), colors.HexColor("#1e40af")),
-            ("LINEABOVE", (0, -1), (-1, -1), 1.5, colors.HexColor("#1e40af")),
-            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-            ("TOPPADDING", (0, 0), (-1, -1), 6),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
-        ])
-    )
+    table.setStyle(TableStyle([
+        # Header row
+        ("BACKGROUND", (0, 0), (-1, 0), BRAND_PRIMARY_DARK),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("TOPPADDING", (0, 0), (-1, 0), 8),
+        ("BOTTOMPADDING", (0, 0), (-1, 0), 8),
+        # Body rows
+        ("ROWBACKGROUNDS", (0, 1), (-1, -4), [colors.white, BRAND_BG_LIGHT]),
+        ("GRID", (0, 0), (-1, -4), 0.4, BRAND_BORDER),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("TOPPADDING", (0, 1), (-1, -4), 6),
+        ("BOTTOMPADDING", (0, 1), (-1, -4), 6),
+        ("LEFTPADDING", (0, 0), (-1, -1), 8),
+        # Summary rows (subtotal, iva, total)
+        ("LINEABOVE", (0, -3), (-1, -3), 1, BRAND_PRIMARY),
+        ("TOPPADDING", (0, -3), (-1, -3), 8),
+        ("BOTTOMPADDING", (0, -3), (-1, -3), 4),
+        ("TOPPADDING", (0, -2), (-1, -2), 4),
+        ("BOTTOMPADDING", (0, -2), (-1, -2), 4),
+        # Total row
+        ("BACKGROUND", (0, -1), (-1, -1), BRAND_PRIMARY_LIGHT),
+        ("LINEABOVE", (0, -1), (-1, -1), 2, BRAND_PRIMARY),
+        ("TOPPADDING", (0, -1), (-1, -1), 10),
+        ("BOTTOMPADDING", (0, -1), (-1, -1), 10),
+    ]))
     elements.append(table)
-    elements.append(Spacer(1, 20))
+    elements.append(Spacer(1, 30))
 
-    # Footer
-    footer_style = ParagraphStyle(
-        "Footer",
-        parent=styles["Normal"],
-        fontSize=8,
-        textColor=colors.grey,
-        alignment=1,
-    )
+    # --- Footer ---
+    bar2 = Table([[""]], colWidths=[7.0 * inch], rowHeights=[2])
+    bar2.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, -1), BRAND_PRIMARY)]))
+    elements.append(bar2)
+    elements.append(Spacer(1, 8))
     elements.append(Paragraph(
-        f"Generado por AV Electronics · {datetime.now().strftime('%d/%m/%Y %H:%M')}",
+        "AV Electronics • Sucursal Almagro: Andrade Marín e7-76 y Av Diego de Almagro • Teléfono: 0999 200 997 • E-mail: ventas@avelectronics.cc • Quito - Ecuador",
         footer_style,
     ))
 
@@ -195,15 +294,15 @@ def generate_excel(cotizacion: Cotizacion) -> bytes:
 
     # Styles
     header_font = Font(name="Calibri", bold=True, color="FFFFFF", size=11)
-    header_fill = PatternFill(start_color="1E40AF", end_color="1E40AF", fill_type="solid")
-    title_font = Font(name="Calibri", bold=True, size=16, color="1E40AF")
-    subtitle_font = Font(name="Calibri", size=10, color="666666")
-    total_font = Font(name="Calibri", bold=True, size=12, color="1E40AF")
+    header_fill = PatternFill(start_color="0891B2", end_color="0891B2", fill_type="solid")
+    title_font = Font(name="Calibri", bold=True, size=16, color="0891B2")
+    subtitle_font = Font(name="Calibri", size=10, color="64748B")
+    total_font = Font(name="Calibri", bold=True, size=12, color="0891B2")
     thin_border = Border(
-        left=Side(style="thin", color="CBD5E1"),
-        right=Side(style="thin", color="CBD5E1"),
-        top=Side(style="thin", color="CBD5E1"),
-        bottom=Side(style="thin", color="CBD5E1"),
+        left=Side(style="thin", color="E2E8F0"),
+        right=Side(style="thin", color="E2E8F0"),
+        top=Side(style="thin", color="E2E8F0"),
+        bottom=Side(style="thin", color="E2E8F0"),
     )
 
     # Title

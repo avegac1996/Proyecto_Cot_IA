@@ -8,10 +8,15 @@ export default function ThemeToggle() {
     <button
       onClick={toggleTheme}
       title={theme === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
-      className="p-2 rounded-lg transition-colors"
-      style={{ color: 'var(--color-text-muted)' }}
+      className="flex items-center gap-2 px-3.5 py-2.5 rounded-lg text-sm font-semibold transition-all w-full"
+      style={{
+        color: 'var(--color-text)',
+        backgroundColor: 'var(--color-bg)',
+        border: '1px solid var(--color-border)',
+      }}
     >
-      {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+      {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+      <span>{theme === 'dark' ? 'Modo claro' : 'Modo oscuro'}</span>
     </button>
   )
 }

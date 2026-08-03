@@ -29,23 +29,37 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4" style={{ backgroundColor: 'var(--color-bg)' }}>
-      <div className="w-full max-w-md" style={{ backgroundColor: 'var(--color-surface)' }}>
-        <div className="rounded-2xl shadow-xl border p-8" style={{ borderColor: 'var(--color-border)' }}>
-          {/* Header */}
-          <div className="text-center mb-8">
-            <img
-              src="/logo.png"
-              alt="AV Electronics"
-              className="h-20 w-auto object-contain mx-auto mb-4"
-            />
-            <h1 className="text-2xl font-bold" style={{ color: 'var(--color-text)' }}>
-              AV Electronics
-            </h1>
-            <p className="text-sm mt-1" style={{ color: 'var(--color-text-muted)' }}>
-              Sistema Inteligente de Cotización
-            </p>
-          </div>
+    <div className="min-h-screen flex items-center justify-center px-4 py-12" style={{ backgroundColor: 'var(--color-bg)' }}>
+      <div
+        className="w-full max-w-md"
+        style={{
+          backgroundColor: 'var(--color-surface)',
+          border: '1px solid var(--color-border)',
+          borderRadius: 'var(--radius-lg)',
+          boxShadow: 'var(--shadow-lg)',
+          padding: '32px',
+        }}
+      >
+        {/* Header */}
+        <div className="text-center mb-8">
+          <span
+            className="inline-block text-xs font-bold uppercase tracking-wider px-2 py-1 rounded mb-3"
+            style={{ backgroundColor: 'var(--color-primary-light)', color: 'var(--color-primary)' }}
+          >
+            AV Electronics
+          </span>
+          <img
+            src="/logo.png"
+            alt="AV Electronics"
+            className="h-16 w-auto object-contain mx-auto mb-3"
+          />
+          <h1 className="text-2xl font-bold" style={{ color: 'var(--color-text)' }}>
+            Iniciar Sesión
+          </h1>
+          <p className="text-sm mt-1" style={{ color: 'var(--color-text-muted)' }}>
+            Sistema Inteligente de Cotización
+          </p>
+        </div>
 
           {/* Error */}
           {error && (
@@ -166,7 +180,6 @@ export default function LoginPage() {
             <p>Admin: admin@cotia.com / Admin123!</p>
             <p>User: user@cotia.com / User123!</p>
           </div>
-        </div>
       </div>
     </div>
   )

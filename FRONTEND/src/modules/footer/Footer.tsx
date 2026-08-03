@@ -1,11 +1,11 @@
 export default function Footer() {
   return (
     <footer
-      className="border-t py-4"
-      style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}
+      className="px-6 md:px-8 py-4 border-t"
+      style={{ borderColor: 'var(--color-border)' }}
     >
       <div
-        className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs"
+        className="flex flex-col sm:flex-row items-center justify-between gap-2 text-xs"
         style={{ color: 'var(--color-text-muted)' }}
       >
         <p>AV Electronics — Sistema Inteligente de Cotización de Componentes Electrónicos</p>

@@ -16,6 +16,8 @@ class Cotizacion(Base):
     session_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), unique=True, nullable=False)
     usuario_id: Mapped[int] = mapped_column(ForeignKey("usuarios.id"), nullable=False, index=True)
     cliente_nombre: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    cliente_correo: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    cliente_celular: Mapped[str | None] = mapped_column(String(50), nullable=True)
     fecha_creacion: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     fecha_actualizacion: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
     estado: Mapped[str] = mapped_column(String(20), default="pendiente", nullable=False)

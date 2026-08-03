@@ -177,6 +177,8 @@ export default function HistorialPage() {
               <thead>
                 <tr style={{ backgroundColor: 'var(--color-primary)' }}>
                   <th className="text-left px-4 py-3 font-semibold text-white">#</th>
+                  <th className="text-left px-4 py-3 font-semibold text-white">Cliente</th>
+                  <th className="text-left px-4 py-3 font-semibold text-white">Usuario</th>
                   <th className="text-left px-4 py-3 font-semibold text-white">Fecha</th>
                   <th className="text-center px-4 py-3 font-semibold text-white">Ítems</th>
                   <th className="text-right px-4 py-3 font-semibold text-white">Total</th>
@@ -199,6 +201,12 @@ export default function HistorialPage() {
                     >
                       <td className="px-4 py-3 font-medium" style={{ color: 'var(--color-text)' }}>
                         #{c.cotizacion_id}
+                      </td>
+                      <td className="px-4 py-3" style={{ color: 'var(--color-text)' }}>
+                        {c.cliente_nombre || '—'}
+                      </td>
+                      <td className="px-4 py-3" style={{ color: 'var(--color-text-muted)' }}>
+                        {c.usuario_nombre || '—'}
                       </td>
                       <td className="px-4 py-3" style={{ color: 'var(--color-text-muted)' }}>
                         {new Date(c.fecha_creacion).toLocaleString()}
@@ -322,6 +330,32 @@ export default function HistorialPage() {
                   {cotizacionDetalle.estado}
                 </span>
               </div>
+
+              {(cotizacionDetalle.cliente_nombre || cotizacionDetalle.cliente_correo || cotizacionDetalle.cliente_celular) && (
+                <div
+                  className="rounded-lg border p-3 mb-4 text-sm space-y-1"
+                  style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-bg)' }}
+                >
+                  {cotizacionDetalle.cliente_nombre && (
+                    <div style={{ color: 'var(--color-text)' }}>
+                      <span className="font-medium" style={{ color: 'var(--color-text-muted)' }}>Cliente: </span>
+                      {cotizacionDetalle.cliente_nombre}
+                    </div>
+                  )}
+                  {cotizacionDetalle.cliente_correo && (
+                    <div style={{ color: 'var(--color-text)' }}>
+                      <span className="font-medium" style={{ color: 'var(--color-text-muted)' }}>Correo: </span>
+                      {cotizacionDetalle.cliente_correo}
+                    </div>
+                  )}
+                  {cotizacionDetalle.cliente_celular && (
+                    <div style={{ color: 'var(--color-text)' }}>
+                      <span className="font-medium" style={{ color: 'var(--color-text-muted)' }}>Celular: </span>
+                      {cotizacionDetalle.cliente_celular}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {cotizacionDetalle.estado === 'finalizada' && (
                 <div

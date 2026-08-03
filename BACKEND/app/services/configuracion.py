@@ -63,3 +63,40 @@ async def obtener_tienda_propia(db: AsyncSession) -> str:
     if config:
         return config.valor
     return settings.TIENDA_PROPIA
+
+
+async def obtener_iva(db: AsyncSession) -> float:
+    """Lee el porcentaje de IVA desde BD. Fallback a 15% si no existe."""
+    result = await db.execute(
+        select(ConfiguracionNegocio).where(
+            ConfiguracionNegocio.clave == "iva"
+        )
+    )
+    config = result.scalar_one_or_none()
+    if config:
+        try:
+            return float(config.valor)
+        except ValueError:
+            pass
+    return 15.0
+
+
+async def actualizar_iva(db: AsyncSession, valor: float) -> float:
+    """Actualiza o crea el IVA en BD. Retorna el valor guardado."""
+    result = await db.execute(
+        select(ConfiguracionNegocio).where(
+            ConfiguracionNegocio.clave == "iva"
+        )
+    )
+    config = result.scalar_one_or_none()
+    if config:
+        config.valor = str(valor)
+    else:
+        config = ConfiguracionNegocio(
+            clave="iva",
+            valor=str(valor),
+            descripcion="Porcentaje de IVA aplicado a las cotizaciones",
+        )
+        db.add(config)
+    await db.commit()
+    return valor

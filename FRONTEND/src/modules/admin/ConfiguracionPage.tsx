@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react'
 import { Settings, Save, Loader2, AlertCircle, CheckCircle } from 'lucide-react'
-import { getConfiguracion, actualizarMargen } from '@/modules/carga/services/busquedaService'
+import { getConfiguracion, actualizarMargen, actualizarIva } from '@/modules/carga/services/busquedaService'
 
 export default function ConfiguracionPage() {
   const [margen, setMargen] = useState<number>(5)
   const [margenOriginal, setMargenOriginal] = useState<number>(5)
+  const [iva, setIva] = useState<number>(15)
+  const [ivaOriginal, setIvaOriginal] = useState<number>(15)
   const [tiendaPropia, setTiendaPropia] = useState<string>('')
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
@@ -21,6 +23,8 @@ export default function ConfiguracionPage() {
       const config = await getConfiguracion()
       setMargen(config.margen_competencia)
       setMargenOriginal(config.margen_competencia)
+      setIva(config.iva)
+      setIvaOriginal(config.iva)
       setTiendaPropia(config.tienda_propia)
     } catch (err) {
       const e = err as { response?: { data?: { detail?: { message?: string } } }; message?: string }
@@ -35,8 +39,17 @@ export default function ConfiguracionPage() {
     setError(null)
     setSuccess(false)
     try {
-      const config = await actualizarMargen(margen)
-      setMargenOriginal(config.margen_competencia)
+      let config = null
+      if (margen !== margenOriginal) {
+        config = await actualizarMargen(margen)
+      }
+      if (iva !== ivaOriginal) {
+        config = await actualizarIva(iva)
+      }
+      if (config) {
+        setMargenOriginal(config.margen_competencia)
+        setIvaOriginal(config.iva)
+      }
       setSuccess(true)
       setTimeout(() => setSuccess(false), 3000)
     } catch (err) {
@@ -55,7 +68,7 @@ export default function ConfiguracionPage() {
     )
   }
 
-  const hayCambios = margen !== margenOriginal
+  const hayCambios = margen !== margenOriginal || iva !== ivaOriginal
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
@@ -115,6 +128,33 @@ export default function ConfiguracionPage() {
               step={0.5}
               value={margen}
               onChange={(e) => setMargen(parseFloat(e.target.value) || 0)}
+              disabled={isSaving}
+              className="w-32 px-3 py-2.5 rounded-lg border outline-none text-sm"
+              style={{
+                borderColor: 'var(--color-border)',
+                backgroundColor: 'var(--color-bg)',
+                color: 'var(--color-text)',
+              }}
+            />
+            <span className="text-lg font-bold" style={{ color: 'var(--color-text-muted)' }}>%</span>
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium mb-2" style={{ color: 'var(--color-text)' }}>
+            IVA (%)
+          </label>
+          <p className="text-xs mb-3" style={{ color: 'var(--color-text-muted)' }}>
+            Porcentaje de Impuesto al Valor Agregado aplicado a las cotizaciones. Se mostrará el subtotal sin IVA, el IVA y el total en el PDF.
+          </p>
+          <div className="flex items-center gap-3">
+            <input
+              type="number"
+              min={0}
+              max={100}
+              step={0.5}
+              value={iva}
+              onChange={(e) => setIva(parseFloat(e.target.value) || 0)}
               disabled={isSaving}
               className="w-32 px-3 py-2.5 rounded-lg border outline-none text-sm"
               style={{

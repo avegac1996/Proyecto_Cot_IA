@@ -13,8 +13,8 @@ from app.services.scraping.scrapers import get_scraper
 logger = logging.getLogger(__name__)
 
 MAX_RESULTADOS_POR_TIENDA = 10
-SCRAPE_TIMEOUT_SECONDS = 60
-MAX_PRODUCT_PAGE_VISITS = 5
+SCRAPE_TIMEOUT_SECONDS = 15
+MAX_PRODUCT_PAGE_VISITS = 3
 
 # Cache en memoria por término (TTL 30 min)
 _cache_termino: dict[str, tuple[datetime, list[dict]]] = {}
@@ -31,7 +31,10 @@ async def buscar_precios(db: AsyncSession, producto: Producto) -> list[dict]:
     result = await db.execute(select(Tienda).where(Tienda.activa.is_(True)))
     tiendas = result.scalars().all()
 
-    proveedores: list[dict] = []
+    # Separar tiendas con cache vigente de las que necesitan scraping
+    proveedores_cache: list[dict] = []
+    tiendas_a_scrapear: list[Tienda] = []
+
     for tienda in tiendas:
         result = await db.execute(
             select(ScrapingCache).where(
@@ -48,7 +51,7 @@ async def buscar_precios(db: AsyncSession, producto: Producto) -> list[dict]:
         )
 
         if vigente:
-            proveedores.append({
+            proveedores_cache.append({
                 "tienda": tienda.nombre,
                 "precio_unitario": float(entrada.precio) if entrada.precio is not None else None,
                 "disponible": bool(entrada.disponible),
@@ -56,45 +59,52 @@ async def buscar_precios(db: AsyncSession, producto: Producto) -> list[dict]:
                 "fuente": "cache",
             })
         else:
-            # Scraping en vivo — scrape() ahora retorna list[dict]
-            scraped_results: list[dict] = []
-            try:
-                scraper = await get_scraper(
-                    tienda.nombre,
-                    tienda.url_base,
-                    tienda.selectores,
-                    tienda.usa_javascript,
-                )
-                scraped_results = await scraper.scrape(producto.nombre)
-            except Exception as exc:
-                logger.warning("Scraping falló para %s: %s", tienda.nombre, exc)
+            tiendas_a_scrapear.append(tienda)
 
-            # Tomar el primer resultado para cachear (compatibilidad)
-            first = scraped_results[0] if scraped_results else {"precio": None, "disponible": False, "url": None}
-
-            # Guardar en cache
-            nueva_entrada = ScrapingCache(
-                producto_id=producto.id,
-                tienda=tienda.nombre,
-                precio=first["precio"],
-                disponible=first["disponible"],
-                url_producto=first["url"],
-                fecha_consulta=datetime.now(),
-                ttl_horas=tienda.ttl_horas,
+    # Scrapear todas las tiendas sin cache en paralelo
+    async def _scrape_one(tienda: Tienda) -> dict:
+        scraped_results: list[dict] = []
+        try:
+            scraper = await get_scraper(
+                tienda.nombre,
+                tienda.url_base,
+                tienda.selectores,
+                tienda.usa_javascript,
             )
-            db.add(nueva_entrada)
-            await db.commit()
+            scraped_results = await asyncio.wait_for(
+                scraper.scrape(producto.nombre),
+                timeout=SCRAPE_TIMEOUT_SECONDS,
+            )
+        except asyncio.TimeoutError:
+            logger.warning("Timeout scrapeando %s para '%s'", tienda.nombre, producto.nombre)
+        except Exception as exc:
+            logger.warning("Scraping falló para %s: %s", tienda.nombre, exc)
 
-            # Retornar el primer resultado para compatibilidad con flujo existente
-            proveedores.append({
-                "tienda": tienda.nombre,
-                "precio_unitario": float(first["precio"]) if first["precio"] is not None else None,
-                "disponible": first["disponible"],
-                "url": first["url"],
-                "fuente": "web_scraping",
-            })
+        first = scraped_results[0] if scraped_results else {"precio": None, "disponible": False, "url": None}
 
-    return proveedores
+        # Guardar en cache
+        nueva_entrada = ScrapingCache(
+            producto_id=producto.id,
+            tienda=tienda.nombre,
+            precio=first["precio"],
+            disponible=first["disponible"],
+            url_producto=first["url"],
+            fecha_consulta=datetime.now(),
+            ttl_horas=tienda.ttl_horas,
+        )
+        db.add(nueva_entrada)
+        await db.commit()
+
+        return {
+            "tienda": tienda.nombre,
+            "precio_unitario": float(first["precio"]) if first["precio"] is not None else None,
+            "disponible": first["disponible"],
+            "url": first["url"],
+            "fuente": "web_scraping",
+        }
+
+    resultados_scraping = await asyncio.gather(*[_scrape_one(t) for t in tiendas_a_scrapear])
+    return proveedores_cache + resultados_scraping
 
 
 async def _scrape_tienda(tienda: Tienda, termino: str) -> list[dict]:

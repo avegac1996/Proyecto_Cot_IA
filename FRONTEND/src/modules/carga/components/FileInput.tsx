@@ -23,8 +23,10 @@ export default function FileInput({ onTextExtracted, disabled }: Props) {
 
       if (ext === 'pdf') {
         const pdfjs = await import('pdfjs-dist')
-        const pdfjsWorker = await import('pdfjs-dist/build/pdf.worker.min.mjs')
-        pdfjs.GlobalWorkerOptions.workerSrc = pdfjsWorker.default
+        pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+          'pdfjs-dist/build/pdf.worker.min.mjs',
+          import.meta.url
+        ).toString()
         const arrayBuffer = await file.arrayBuffer()
         const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise
         for (let i = 1; i <= pdf.numPages; i++) {
@@ -57,7 +59,7 @@ export default function FileInput({ onTextExtracted, disabled }: Props) {
       if (text) {
         onTextExtracted(text)
       } else {
-        setError('No se extrajo texto del archivo')
+        setError('No se extrajo texto del archivo. Si es un PDF escaneado, intenta subirlo como imagen.')
       }
     } catch {
       setError('Error al procesar el archivo')

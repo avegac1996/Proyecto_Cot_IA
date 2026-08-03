@@ -66,7 +66,7 @@ export default function ImageInput({ onTextExtracted, disabled }: Props) {
             <img src={preview} alt="Preview" className="max-h-32 mx-auto rounded" />
             {isProcessing ? (
               <div className="flex items-center justify-center gap-2 text-xs" style={{ color: 'var(--color-text-muted)' }}>
-                <Sparkles className="w-3 h-3 animate-pulse" style={{ color: '#4285F4' }} />
+                <Sparkles className="w-3 h-3 animate-pulse" style={{ color: 'var(--color-primary)' }} />
                 Analizando con Gemini...
               </div>
             ) : (
@@ -79,7 +79,7 @@ export default function ImageInput({ onTextExtracted, disabled }: Props) {
                   <div className="text-left space-y-0.5 mt-2 p-2 rounded text-xs" style={{ backgroundColor: 'var(--color-surface)' }}>
                     {componentes.map((comp, i) => (
                       <div key={i} className="flex items-center gap-1" style={{ color: 'var(--color-text)' }}>
-                        <span style={{ color: '#4285F4' }}>●</span> {comp}
+                        <span style={{ color: 'var(--color-primary)' }}>●</span> {comp}
                       </div>
                     ))}
                   </div>
@@ -91,7 +91,7 @@ export default function ImageInput({ onTextExtracted, disabled }: Props) {
           <div className="flex flex-col items-center gap-1 py-2" style={{ color: 'var(--color-text-muted)' }}>
             <ImageIcon className="w-6 h-6" />
             <span className="text-xs">Arrastra o click para subir imagen</span>
-            <span className="text-xs flex items-center gap-1" style={{ color: '#4285F4' }}>
+            <span className="text-xs flex items-center gap-1" style={{ color: 'var(--color-primary)' }}>
               <Sparkles className="w-3 h-3" />
               Análisis con Google Gemini Vision
             </span>

@@ -17,6 +17,7 @@ from app.schemas.cotizacion import (
     CotizacionListResponse,
     CotizacionResponse,
 )
+from app.services.configuracion import obtener_iva
 from app.services.cotizacion.exporter import generate_excel, generate_pdf
 from app.services.cotizacion.generator import agregar_item_cotizacion, generar_cotizacion, recalcular_total
 from app.services.preguntas.selector import seleccionar_preguntas
@@ -32,6 +33,9 @@ def _to_response(c: Cotizacion) -> CotizacionResponse:
         total=c.total,
         estado=c.estado,
         fecha_creacion=c.fecha_creacion,
+        cliente_nombre=c.cliente_nombre,
+        cliente_correo=c.cliente_correo,
+        cliente_celular=c.cliente_celular,
     )
 
 
@@ -60,6 +64,8 @@ class ItemCarritoRequest(BaseModel):
 class CrearDesdeCarritoRequest(BaseModel):
     items: list[ItemCarritoRequest]
     cliente_nombre: str | None = None
+    cliente_correo: str | None = None
+    cliente_celular: str | None = None
     cotizacion_id: int | None = None
 
 
@@ -104,6 +110,8 @@ async def crear_desde_carrito(
             session_id=sesion.id,
             usuario_id=user.id,
             cliente_nombre=body.cliente_nombre,
+            cliente_correo=body.cliente_correo,
+            cliente_celular=body.cliente_celular,
             estado="pendiente",
             total=Decimal("0"),
         )
@@ -210,7 +218,9 @@ async def listar_cotizaciones(
     db: AsyncSession = Depends(get_db),
     user: Usuario = Depends(get_current_user),
 ):
-    base = select(Cotizacion)
+    base = select(Cotizacion, Usuario.username).join(
+        Usuario, Cotizacion.usuario_id == Usuario.id
+    )
     if user.rol != "admin":
         base = base.where(Cotizacion.usuario_id == user.id)
 
@@ -224,7 +234,7 @@ async def listar_cotizaciones(
         .offset((page - 1) * limit)
         .limit(limit)
     )
-    cotizaciones = result.scalars().all()
+    rows = result.all()
 
     return CotizacionListResponse(
         total=total,
@@ -238,8 +248,10 @@ async def listar_cotizaciones(
                 total=c.total,
                 total_items=len(c.items),
                 fecha_creacion=c.fecha_creacion,
+                cliente_nombre=c.cliente_nombre,
+                usuario_nombre=username,
             )
-            for c in cotizaciones
+            for c, username in rows
         ],
     )
 
@@ -262,7 +274,8 @@ async def descargar_pdf(
     user: Usuario = Depends(get_current_user),
 ):
     cotizacion = await _get_cotizacion_by_id(cotizacion_id, user, db)
-    pdf_bytes = generate_pdf(cotizacion)
+    iva_pct = await obtener_iva(db)
+    pdf_bytes = generate_pdf(cotizacion, iva_pct)
     return StreamingResponse(
         io.BytesIO(pdf_bytes),
         media_type="application/pdf",

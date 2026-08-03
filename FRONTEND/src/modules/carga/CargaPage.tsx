@@ -1,12 +1,14 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { Search, Loader2, AlertCircle, Send, Mic, Image as ImageIcon, FileText, Type, Info, ArrowLeft } from 'lucide-react'
+import { Search, Loader2, AlertCircle, Send, Mic, Image as ImageIcon, FileText, Type, Info, ArrowLeft, Sparkles } from 'lucide-react'
 import { buscarComponentes, crearCotizacionDesdeCarrito, getCotizacionById } from './services/busquedaService'
 import TarjetaProducto from './components/TarjetaProducto'
 import CarritoPreview from './components/CarritoPreview'
 import VoiceInput from './components/VoiceInput'
 import ImageInput from './components/ImageInput'
 import FileInput from './components/FileInput'
+import ClienteModal from './components/ClienteModal'
+import AgenteChat from './components/AgenteChat'
 import type { ResultadoComponente, OpcionProducto, ItemCarrito } from '@/shared/types'
 
 export default function CargaPage() {
@@ -18,6 +20,10 @@ export default function CargaPage() {
   const [resultados, setResultados] = useState<ResultadoComponente[]>([])
   const [carrito, setCarrito] = useState<ItemCarrito[]>([])
   const [metodoActivo, setMetodoActivo] = useState<'texto' | 'voz' | 'imagen' | 'archivo'>('texto')
+  const [mostrarModalCliente, setMostrarModalCliente] = useState(false)
+  const [mostrarAgente, setMostrarAgente] = useState(false)
+  const [busquedaRealizada, setBusquedaRealizada] = useState(false)
+  const [terminoBusqueda, setTerminoBusqueda] = useState('')
   const resultadosRef = useRef<HTMLDivElement>(null)
   const editandoCotizacionId = (location.state as { cotizacionId?: number } | null)?.cotizacionId ?? null
 
@@ -60,6 +66,8 @@ export default function CargaPage() {
     if (!trimmed) return
     setIsLoading(true)
     setError(null)
+    setBusquedaRealizada(true)
+    setTerminoBusqueda(trimmed)
     try {
       const data = await buscarComponentes(trimmed)
       setResultados(data.resultados)
@@ -109,12 +117,12 @@ export default function CargaPage() {
     handleBuscarWith(sugerencia)
   }
 
-  const handleFinalizar = async () => {
+  const handleFinalizar = async (cliente?: { nombre: string; correo: string; celular: string }) => {
     if (carrito.length === 0) return
     setIsLoading(true)
     setError(null)
     try {
-      const cotizacion = await crearCotizacionDesdeCarrito(carrito, editandoCotizacionId ?? undefined)
+      const cotizacion = await crearCotizacionDesdeCarrito(carrito, editandoCotizacionId ?? undefined, cliente)
       navigate('/historial', { state: { cotizacionCreada: cotizacion.cotizacion_id } })
     } catch (err) {
       const e = err as { response?: { data?: { detail?: unknown } }; message?: string }
@@ -128,6 +136,7 @@ export default function CargaPage() {
       }
     } finally {
       setIsLoading(false)
+      setMostrarModalCliente(false)
     }
   }
 
@@ -226,18 +235,32 @@ export default function CargaPage() {
                     }
                   }}
                 />
-                <button
-                  onClick={handleBuscar}
-                  disabled={!mensaje.trim() || isLoading}
-                  className="w-full py-2.5 rounded-lg font-medium text-white text-sm transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                  style={{ backgroundColor: 'var(--color-primary)' }}
-                >
-                  {isLoading ? (
-                    <><Loader2 className="w-4 h-4 animate-spin" /> Buscando...</>
-                  ) : (
-                    <><Send className="w-4 h-4" /> Buscar componentes</>
-                  )}
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleBuscar}
+                    disabled={!mensaje.trim() || isLoading}
+                    className="flex-1 py-2.5 rounded-lg font-medium text-white text-sm transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    style={{ backgroundColor: 'var(--color-primary)' }}
+                  >
+                    {isLoading ? (
+                      <><Loader2 className="w-4 h-4 animate-spin" /> Buscando...</>
+                    ) : (
+                      <><Send className="w-4 h-4" /> Buscar componentes</>
+                    )}
+                  </button>
+                  <button
+                    onClick={() => setMostrarAgente((v) => !v)}
+                    title="Preguntar al asistente IA"
+                    className="px-3 py-2.5 rounded-lg transition-colors flex items-center justify-center"
+                    style={{
+                      border: '1px solid var(--color-border)',
+                      backgroundColor: mostrarAgente ? 'var(--color-primary)' : 'var(--color-bg)',
+                      color: mostrarAgente ? '#fff' : 'var(--color-text-muted)',
+                    }}
+                  >
+                    <Sparkles className="w-4 h-4" />
+                  </button>
+                </div>
               </>
             )}
 
@@ -256,18 +279,32 @@ export default function CargaPage() {
                     {mensaje}
                   </div>
                 )}
-                <button
-                  onClick={handleBuscar}
-                  disabled={!mensaje.trim() || isLoading}
-                  className="w-full py-2.5 rounded-lg font-medium text-white text-sm transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                  style={{ backgroundColor: 'var(--color-primary)' }}
-                >
-                  {isLoading ? (
-                    <><Loader2 className="w-4 h-4 animate-spin" /> Buscando...</>
-                  ) : (
-                    <><Send className="w-4 h-4" /> Buscar componentes</>
-                  )}
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleBuscar}
+                    disabled={!mensaje.trim() || isLoading}
+                    className="flex-1 py-2.5 rounded-lg font-medium text-white text-sm transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    style={{ backgroundColor: 'var(--color-primary)' }}
+                  >
+                    {isLoading ? (
+                      <><Loader2 className="w-4 h-4 animate-spin" /> Buscando...</>
+                    ) : (
+                      <><Send className="w-4 h-4" /> Buscar componentes</>
+                    )}
+                  </button>
+                  <button
+                    onClick={() => setMostrarAgente((v) => !v)}
+                    title="Preguntar al asistente IA"
+                    className="px-3 py-2.5 rounded-lg transition-colors flex items-center justify-center"
+                    style={{
+                      border: '1px solid var(--color-border)',
+                      backgroundColor: mostrarAgente ? 'var(--color-primary)' : 'var(--color-bg)',
+                      color: mostrarAgente ? '#fff' : 'var(--color-text-muted)',
+                    }}
+                  >
+                    <Sparkles className="w-4 h-4" />
+                  </button>
+                </div>
               </>
             )}
 
@@ -279,18 +316,32 @@ export default function CargaPage() {
                 </p>
                 <ImageInput onTextExtracted={handleVoiceTranscript} disabled={isLoading} />
                 {mensaje && (
-                  <button
-                    onClick={handleBuscar}
-                    disabled={isLoading}
-                    className="w-full py-2.5 rounded-lg font-medium text-white text-sm transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                    style={{ backgroundColor: 'var(--color-primary)' }}
-                  >
-                    {isLoading ? (
-                      <><Loader2 className="w-4 h-4 animate-spin" /> Buscando...</>
-                    ) : (
-                      <><Send className="w-4 h-4" /> Buscar componentes</>
-                    )}
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleBuscar}
+                      disabled={isLoading}
+                      className="flex-1 py-2.5 rounded-lg font-medium text-white text-sm transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                      style={{ backgroundColor: 'var(--color-primary)' }}
+                    >
+                      {isLoading ? (
+                        <><Loader2 className="w-4 h-4 animate-spin" /> Buscando...</>
+                      ) : (
+                        <><Send className="w-4 h-4" /> Buscar componentes</>
+                      )}
+                    </button>
+                    <button
+                      onClick={() => setMostrarAgente((v) => !v)}
+                      title="Preguntar al asistente IA"
+                      className="px-3 py-2.5 rounded-lg transition-colors flex items-center justify-center"
+                      style={{
+                        border: '1px solid var(--color-border)',
+                        backgroundColor: mostrarAgente ? 'var(--color-primary)' : 'var(--color-bg)',
+                        color: mostrarAgente ? '#fff' : 'var(--color-text-muted)',
+                      }}
+                    >
+                      <Sparkles className="w-4 h-4" />
+                    </button>
+                  </div>
                 )}
               </>
             )}
@@ -303,22 +354,51 @@ export default function CargaPage() {
                 </p>
                 <FileInput onTextExtracted={handleVoiceTranscript} disabled={isLoading} />
                 {mensaje && (
-                  <button
-                    onClick={handleBuscar}
-                    disabled={isLoading}
-                    className="w-full py-2.5 rounded-lg font-medium text-white text-sm transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                    style={{ backgroundColor: 'var(--color-primary)' }}
-                  >
-                    {isLoading ? (
-                      <><Loader2 className="w-4 h-4 animate-spin" /> Buscando...</>
-                    ) : (
-                      <><Send className="w-4 h-4" /> Buscar componentes</>
-                    )}
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleBuscar}
+                      disabled={isLoading}
+                      className="flex-1 py-2.5 rounded-lg font-medium text-white text-sm transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                      style={{ backgroundColor: 'var(--color-primary)' }}
+                    >
+                      {isLoading ? (
+                        <><Loader2 className="w-4 h-4 animate-spin" /> Buscando...</>
+                      ) : (
+                        <><Send className="w-4 h-4" /> Buscar componentes</>
+                      )}
+                    </button>
+                    <button
+                      onClick={() => setMostrarAgente((v) => !v)}
+                      title="Preguntar al asistente IA"
+                      className="px-3 py-2.5 rounded-lg transition-colors flex items-center justify-center"
+                      style={{
+                        border: '1px solid var(--color-border)',
+                        backgroundColor: mostrarAgente ? 'var(--color-primary)' : 'var(--color-bg)',
+                        color: mostrarAgente ? '#fff' : 'var(--color-text-muted)',
+                      }}
+                    >
+                      <Sparkles className="w-4 h-4" />
+                    </button>
+                  </div>
                 )}
               </>
             )}
           </div>
+
+          {/* Asistente IA desplegable */}
+          {mostrarAgente && busquedaRealizada && (
+            <AgenteChat resultados={resultados} terminoBusqueda={terminoBusqueda} />
+          )}
+
+          {/* Sin resultados */}
+          {busquedaRealizada && resultados.length === 0 && !error && !isLoading && (
+            <div
+              className="rounded-lg border p-4 text-sm text-center"
+              style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-muted)' }}
+            >
+              No se encontraron resultados para "{terminoBusqueda}". Usa el asistente IA para reformular tu búsqueda.
+            </div>
+          )}
 
           {/* Resultados de búsqueda */}
           {resultados.length > 0 && (
@@ -373,12 +453,20 @@ export default function CargaPage() {
             items={carrito}
             onQuitar={handleQuitarCarrito}
             onCambiarCantidad={handleCambiarCantidad}
-            onFinalizar={handleFinalizar}
+            onFinalizar={() => editandoCotizacionId ? handleFinalizar() : setMostrarModalCliente(true)}
             disabled={carrito.length === 0 || isLoading}
           />
           </div>
         </div>
       </div>
+
+      {mostrarModalCliente && (
+        <ClienteModal
+          onSubmit={(data) => handleFinalizar(data)}
+          onCancel={() => setMostrarModalCliente(false)}
+          isLoading={isLoading}
+        />
+      )}
     </div>
   )
 }
