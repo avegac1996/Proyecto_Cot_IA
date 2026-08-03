@@ -189,14 +189,6 @@ export default function TiendasPage() {
             </p>
           </div>
         </div>
-        <button
-          onClick={handleNueva}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg text-white text-sm font-medium transition-colors"
-          style={{ backgroundColor: 'var(--color-primary)' }}
-        >
-          <Plus className="w-4 h-4" />
-          Nueva Tienda
-        </button>
       </div>
 
       {error && (
