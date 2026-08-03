@@ -8,9 +8,15 @@ interface HistorialResponse {
   cotizaciones: CotizacionListItem[]
 }
 
-export async function getHistorial(page = 1, limit = 20): Promise<HistorialResponse> {
+export async function getHistorial(
+  page = 1,
+  limit = 10,
+  q?: string,
+  desde?: string,
+  hasta?: string
+): Promise<HistorialResponse> {
   const { data } = await api.get<HistorialResponse>('/cotizaciones', {
-    params: { page, limit },
+    params: { page, limit, q: q || undefined, desde: desde || undefined, hasta: hasta || undefined },
   })
   return data
 }

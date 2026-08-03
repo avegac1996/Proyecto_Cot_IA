@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { AlertCircle, Eye, History, Loader2, Trash2, Download, X, FileText, Lock, Plus } from 'lucide-react'
+import { AlertCircle, Eye, History, Loader2, Trash2, Download, X, FileText, Lock, Plus, Search, ChevronLeft, ChevronRight, Calendar } from 'lucide-react'
 import type { CotizacionListItem, Cotizacion } from '@/shared/types'
 import {
   extractHistorialError,
@@ -34,17 +34,44 @@ export default function HistorialPage() {
   const [highlightId, setHighlightId] = useState<number | null>(null)
   const [finalizando, setFinalizando] = useState(false)
 
+  // Paginación y filtros
+  const [page, setPage] = useState(1)
+  const [total, setTotal] = useState(0)
+  const [totalPages, setTotalPages] = useState(1)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchInput, setSearchInput] = useState('')
+  const [desde, setDesde] = useState('')
+  const [hasta, setHasta] = useState('')
+  const LIMIT = 10
+
   const cargarHistorial = useCallback(() => {
     setIsLoading(true)
-    getHistorial()
-      .then((data) => setCotizaciones(data.cotizaciones))
+    getHistorial(page, LIMIT, searchQuery || undefined, desde || undefined, hasta || undefined)
+      .then((data) => {
+        setCotizaciones(data.cotizaciones)
+        setTotal(data.total)
+        setTotalPages(Math.ceil(data.total / LIMIT))
+      })
       .catch((err) => setError(extractHistorialError(err)))
       .finally(() => setIsLoading(false))
-  }, [])
+  }, [page, searchQuery, desde, hasta])
 
   useEffect(() => {
     cargarHistorial()
   }, [cargarHistorial])
+
+  const handleBuscar = () => {
+    setPage(1)
+    setSearchQuery(searchInput.trim())
+  }
+
+  const handleLimpiarFiltros = () => {
+    setPage(1)
+    setSearchQuery('')
+    setSearchInput('')
+    setDesde('')
+    setHasta('')
+  }
 
   useEffect(() => {
     const state = location.state as { cotizacionCreada?: number } | null
@@ -130,6 +157,85 @@ export default function HistorialPage() {
           <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
             Todas las cotizaciones generadas
           </p>
+        </div>
+      </div>
+
+      {/* Barra de búsqueda y filtros */}
+      <div
+        className="rounded-xl border p-4 space-y-3"
+        style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}
+      >
+        <div className="flex gap-2 flex-wrap">
+          <div className="flex-1 min-w-[200px] relative">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--color-text-muted)' }} />
+            <input
+              type="text"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleBuscar()}
+              placeholder="Buscar por cliente o usuario..."
+              className="w-full pl-9 pr-3 py-2 rounded-lg text-sm outline-none"
+              style={{
+                border: '1px solid var(--color-border)',
+                backgroundColor: 'var(--color-bg)',
+                color: 'var(--color-text)',
+              }}
+            />
+          </div>
+          <button
+            onClick={handleBuscar}
+            className="px-4 py-2 rounded-lg text-white text-sm font-medium transition-colors flex items-center gap-2"
+            style={{ backgroundColor: 'var(--color-primary)' }}
+          >
+            <Search className="w-4 h-4" />
+            Buscar
+          </button>
+          {(searchQuery || desde || hasta) && (
+            <button
+              onClick={handleLimpiarFiltros}
+              className="px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+              style={{
+                border: '1px solid var(--color-border)',
+                color: 'var(--color-text-muted)',
+              }}
+            >
+              Limpiar
+            </button>
+          )}
+        </div>
+        <div className="flex gap-2 flex-wrap items-center">
+          <div className="flex items-center gap-1.5">
+            <Calendar className="w-4 h-4" style={{ color: 'var(--color-text-muted)' }} />
+            <span className="text-xs font-medium" style={{ color: 'var(--color-text-muted)' }}>Desde:</span>
+            <input
+              type="date"
+              value={desde}
+              onChange={(e) => { setDesde(e.target.value); setPage(1) }}
+              className="px-2 py-1.5 rounded-lg text-sm outline-none"
+              style={{
+                border: '1px solid var(--color-border)',
+                backgroundColor: 'var(--color-bg)',
+                color: 'var(--color-text)',
+              }}
+            />
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs font-medium" style={{ color: 'var(--color-text-muted)' }}>Hasta:</span>
+            <input
+              type="date"
+              value={hasta}
+              onChange={(e) => { setHasta(e.target.value); setPage(1) }}
+              className="px-2 py-1.5 rounded-lg text-sm outline-none"
+              style={{
+                border: '1px solid var(--color-border)',
+                backgroundColor: 'var(--color-bg)',
+                color: 'var(--color-text)',
+              }}
+            />
+          </div>
+          <span className="text-xs ml-auto" style={{ color: 'var(--color-text-muted)' }}>
+            {total} cotización{total !== 1 ? 'es' : ''} en total
+          </span>
         </div>
       </div>
 
@@ -263,6 +369,61 @@ export default function HistorialPage() {
                 })}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* Paginación */}
+      {!isLoading && cotizaciones.length > 0 && totalPages > 1 && (
+        <div className="flex items-center justify-between">
+          <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
+            Página {page} de {totalPages}
+          </span>
+          <div className="flex gap-1">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className="p-2 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              style={{
+                border: '1px solid var(--color-border)',
+                color: 'var(--color-text)',
+                backgroundColor: 'var(--color-surface)',
+              }}
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            {Array.from({ length: totalPages }, (_, i) => i + 1)
+              .filter((p) => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
+              .map((p, idx, arr) => (
+                <span key={idx} className="flex items-center">
+                  {idx > 0 && arr[idx - 1] !== p - 1 && (
+                    <span className="px-1 text-xs" style={{ color: 'var(--color-text-muted)' }}>...</span>
+                  )}
+                  <button
+                    onClick={() => setPage(p)}
+                    className="min-w-[36px] px-2 py-1.5 rounded-lg text-sm font-medium transition-colors"
+                    style={{
+                      border: '1px solid var(--color-border)',
+                      backgroundColor: p === page ? 'var(--color-primary)' : 'var(--color-surface)',
+                      color: p === page ? '#fff' : 'var(--color-text)',
+                    }}
+                  >
+                    {p}
+                  </button>
+                </span>
+              ))}
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages}
+              className="p-2 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              style={{
+                border: '1px solid var(--color-border)',
+                color: 'var(--color-text)',
+                backgroundColor: 'var(--color-surface)',
+              }}
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
           </div>
         </div>
       )}

@@ -1,4 +1,5 @@
 import io
+from datetime import datetime
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -214,7 +215,10 @@ async def obtener_cotizacion_by_id(
 @router.get("/cotizaciones", response_model=CotizacionListResponse)
 async def listar_cotizaciones(
     page: int = Query(default=1, ge=1),
-    limit: int = Query(default=20, ge=1, le=100),
+    limit: int = Query(default=10, ge=1, le=100),
+    q: str | None = Query(default=None, description="Buscar por cliente o usuario"),
+    desde: str | None = Query(default=None, description="Fecha inicio YYYY-MM-DD"),
+    hasta: str | None = Query(default=None, description="Fecha fin YYYY-MM-DD"),
     db: AsyncSession = Depends(get_db),
     user: Usuario = Depends(get_current_user),
 ):
@@ -223,6 +227,28 @@ async def listar_cotizaciones(
     )
     if user.rol != "admin":
         base = base.where(Cotizacion.usuario_id == user.id)
+
+    if q:
+        filtro = f"%{q.lower()}%"
+        base = base.where(
+            (func.lower(Cotizacion.cliente_nombre).like(filtro))
+            | (func.lower(Usuario.username).like(filtro))
+        )
+
+    if desde:
+        try:
+            fecha_desde = datetime.strptime(desde, "%Y-%m-%d")
+            base = base.where(Cotizacion.fecha_creacion >= fecha_desde)
+        except ValueError:
+            pass
+
+    if hasta:
+        try:
+            fecha_hasta = datetime.strptime(hasta, "%Y-%m-%d")
+            fecha_hasta = fecha_hasta.replace(hour=23, minute=59, second=59)
+            base = base.where(Cotizacion.fecha_creacion <= fecha_hasta)
+        except ValueError:
+            pass
 
     total_result = await db.execute(
         select(func.count()).select_from(base.subquery())
