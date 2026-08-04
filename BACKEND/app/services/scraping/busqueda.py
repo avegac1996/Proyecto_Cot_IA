@@ -34,6 +34,7 @@ async def buscar_por_termino_priorizado(
     for op in opciones_raw:
         if op["precio_base"] is None:
             continue
+        variantes = op.get("variantes", [])
         if op["tienda"] == tienda_propia:
             opciones_propias.append({
                 "tienda": op["tienda"],
@@ -44,6 +45,7 @@ async def buscar_por_termino_priorizado(
                 "disponible": op["disponible"],
                 "url": op["url"],
                 "es_propio": True,
+                "variantes": variantes,
             })
         else:
             precio_con_margen = round(op["precio_base"] * margen_factor, 2)
@@ -56,6 +58,7 @@ async def buscar_por_termino_priorizado(
                 "disponible": op["disponible"],
                 "url": op["url"],
                 "es_propio": False,
+                "variantes": variantes,
             })
 
     # Ordenar: propias primero (por precio), luego externas (por precio con margen)

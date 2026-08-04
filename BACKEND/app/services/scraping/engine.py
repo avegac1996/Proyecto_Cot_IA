@@ -158,6 +158,7 @@ async def buscar_por_termino(db: AsyncSession, termino: str) -> dict:
                 "precio_base": float(item["precio"]) if item["precio"] is not None else None,
                 "disponible": item["disponible"],
                 "url": item["url"],
+                "variantes": item.get("variantes", []),
             })
 
     # Guardar en cache

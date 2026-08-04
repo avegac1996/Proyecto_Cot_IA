@@ -104,6 +104,7 @@ export interface OpcionProducto {
   disponible: boolean
   url: string | null
   es_propio: boolean
+  variantes?: string[]
 }
 
 export interface Sugerencia {

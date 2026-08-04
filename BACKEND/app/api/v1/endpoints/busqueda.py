@@ -30,6 +30,7 @@ class OpcionProducto(BaseModel):
     disponible: bool
     url: str | None
     es_propio: bool
+    variantes: list[str] = []
 
 
 class SugerenciaResponse(BaseModel):

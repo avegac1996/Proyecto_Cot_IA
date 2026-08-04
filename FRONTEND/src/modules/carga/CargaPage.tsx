@@ -291,6 +291,25 @@ export default function CargaPage() {
                       <><Send className="w-4 h-4" /> Buscar componentes</>
                     )}
                   </button>
+                  {busquedaRealizada && resultados.length > 0 && (
+                    <button
+                      onClick={handleRecargar}
+                      disabled={isLoading}
+                      title="Recargar resultados"
+                      className="px-3 py-2.5 rounded-lg transition-colors flex items-center justify-center disabled:opacity-50"
+                      style={{
+                        border: '1px solid var(--color-border)',
+                        color: 'var(--color-text-muted)',
+                        backgroundColor: 'var(--color-surface)',
+                      }}
+                    >
+                      {isLoading ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <RotateCw className="w-4 h-4" />
+                      )}
+                    </button>
+                  )}
                   <button
                     onClick={() => setMostrarAgente((v) => !v)}
                     title="Preguntar al asistente IA"
@@ -335,6 +354,25 @@ export default function CargaPage() {
                       <><Send className="w-4 h-4" /> Buscar componentes</>
                     )}
                   </button>
+                  {busquedaRealizada && resultados.length > 0 && (
+                    <button
+                      onClick={handleRecargar}
+                      disabled={isLoading}
+                      title="Recargar resultados"
+                      className="px-3 py-2.5 rounded-lg transition-colors flex items-center justify-center disabled:opacity-50"
+                      style={{
+                        border: '1px solid var(--color-border)',
+                        color: 'var(--color-text-muted)',
+                        backgroundColor: 'var(--color-surface)',
+                      }}
+                    >
+                      {isLoading ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <RotateCw className="w-4 h-4" />
+                      )}
+                    </button>
+                  )}
                   <button
                     onClick={() => setMostrarAgente((v) => !v)}
                     title="Preguntar al asistente IA"
@@ -372,6 +410,25 @@ export default function CargaPage() {
                         <><Send className="w-4 h-4" /> Buscar componentes</>
                       )}
                     </button>
+                    {busquedaRealizada && resultados.length > 0 && (
+                      <button
+                        onClick={handleRecargar}
+                        disabled={isLoading}
+                        title="Recargar resultados"
+                        className="px-3 py-2.5 rounded-lg transition-colors flex items-center justify-center disabled:opacity-50"
+                        style={{
+                          border: '1px solid var(--color-border)',
+                          color: 'var(--color-text-muted)',
+                          backgroundColor: 'var(--color-surface)',
+                        }}
+                      >
+                        {isLoading ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <RotateCw className="w-4 h-4" />
+                        )}
+                      </button>
+                    )}
                     <button
                       onClick={() => setMostrarAgente((v) => !v)}
                       title="Preguntar al asistente IA"
@@ -410,6 +467,25 @@ export default function CargaPage() {
                         <><Send className="w-4 h-4" /> Buscar componentes</>
                       )}
                     </button>
+                    {busquedaRealizada && resultados.length > 0 && (
+                      <button
+                        onClick={handleRecargar}
+                        disabled={isLoading}
+                        title="Recargar resultados"
+                        className="px-3 py-2.5 rounded-lg transition-colors flex items-center justify-center disabled:opacity-50"
+                        style={{
+                          border: '1px solid var(--color-border)',
+                          color: 'var(--color-text-muted)',
+                          backgroundColor: 'var(--color-surface)',
+                        }}
+                      >
+                        {isLoading ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <RotateCw className="w-4 h-4" />
+                        )}
+                      </button>
+                    )}
                     <button
                       onClick={() => setMostrarAgente((v) => !v)}
                       title="Preguntar al asistente IA"
@@ -446,29 +522,9 @@ export default function CargaPage() {
           {/* Resultados de búsqueda */}
           {resultados.length > 0 && (
             <div ref={resultadosRef} className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-bold" style={{ color: 'var(--color-text)' }}>
-                  Resultados ({resultados.length} {resultados.length === 1 ? 'componente' : 'componentes'})
-                </h3>
-                <button
-                  onClick={handleRecargar}
-                  disabled={isLoading}
-                  title="Recargar resultados"
-                  className="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 disabled:opacity-50"
-                  style={{
-                    border: '1px solid var(--color-border)',
-                    color: 'var(--color-text-muted)',
-                    backgroundColor: 'var(--color-surface)',
-                  }}
-                >
-                  {isLoading ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  ) : (
-                    <RotateCw className="w-3.5 h-3.5" />
-                  )}
-                  Recargar
-                </button>
-              </div>
+              <h3 className="text-sm font-bold" style={{ color: 'var(--color-text)' }}>
+                Resultados ({resultados.length} {resultados.length === 1 ? 'componente' : 'componentes'})
+              </h3>
               <div className="max-h-[60vh] overflow-y-auto space-y-3 pr-1">
               {resultados.map((resultado, idx) => (
                 <div key={`${resultado.termino}-${idx}`} className="space-y-2">

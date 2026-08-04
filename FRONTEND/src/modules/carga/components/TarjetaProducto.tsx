@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Store, Check, X, BadgeCheck, Lightbulb, AlertTriangle, ChevronDown, ChevronUp, Loader2 } from 'lucide-react'
+import { Store, Check, X, BadgeCheck, Lightbulb, AlertTriangle, ChevronDown, ChevronUp, Loader2, Palette } from 'lucide-react'
 import type { ResultadoComponente, OpcionProducto } from '@/shared/types'
 import { buscarAlternativas } from '../services/busquedaService'
 
@@ -194,6 +194,24 @@ export default function TarjetaProducto({ resultado, onToggleSeleccion, seleccio
                           </span>
                         )}
                       </div>
+                      {op.variantes && op.variantes.length > 0 && (
+                        <div className="flex items-center gap-1 flex-wrap mt-1">
+                          <Palette className="w-3 h-3 flex-shrink-0" style={{ color: selected ? 'rgba(255,255,255,0.6)' : 'var(--color-text-muted)' }} />
+                          {op.variantes.map((v, vi) => (
+                            <span
+                              key={vi}
+                              className="px-1.5 py-0.5 rounded text-xs"
+                              style={{
+                                backgroundColor: selected ? 'rgba(255,255,255,0.15)' : 'var(--color-bg)',
+                                color: selected ? 'rgba(255,255,255,0.9)' : 'var(--color-text-muted)',
+                                border: `1px solid ${selected ? 'rgba(255,255,255,0.2)' : 'var(--color-border)'}`,
+                              }}
+                            >
+                              {v}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
                   <div className="text-right flex-shrink-0 ml-2">

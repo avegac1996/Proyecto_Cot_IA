@@ -16,7 +16,7 @@ from app.services.scraping.scrapers.base import BaseScraper
 
 logger = logging.getLogger(__name__)
 
-MAX_PRODUCT_PAGES = 3
+MAX_PRODUCT_PAGES = 10
 
 HEADERS = {
     "User-Agent": (
@@ -119,7 +119,7 @@ class StaticScraper(BaseScraper):
                 page_visit_count += 1
                 page_price_selector = self.selectores.get("product_page_price", "p.price")
                 page_avail_selector = self.selectores.get("product_page_availability", ".stock")
-                precio, page_disponible = await self._scrape_product_page(
+                precio, page_disponible, variantes = await self._scrape_product_page(
                     url_producto, page_price_selector, page_avail_selector
                 )
                 if precio is not None:
@@ -128,14 +128,15 @@ class StaticScraper(BaseScraper):
                         "disponible": page_disponible if page_disponible is not None else disponible,
                         "url": url_producto,
                         "nombre_producto": nombre_producto,
+                        "variantes": variantes if variantes else [],
                     })
 
         return results
 
     async def _scrape_product_page(
         self, url: str, price_selector: str, avail_selector: str
-    ) -> tuple[float | None, bool | None]:
-        """Visita la página de un producto y extrae precio y disponibilidad."""
+    ) -> tuple[float | None, bool | None, list[str]]:
+        """Visita la página de un producto y extrae precio, disponibilidad y variantes."""
         try:
             async with httpx.AsyncClient(
                 headers=HEADERS,
@@ -146,7 +147,7 @@ class StaticScraper(BaseScraper):
                 response.raise_for_status()
         except httpx.HTTPError as exc:
             logger.warning("Error HTTP en página de producto %s: %s", url, exc)
-            return None, None
+            return None, None, []
 
         soup = BeautifulSoup(response.text, "html.parser")
 
@@ -160,4 +161,41 @@ class StaticScraper(BaseScraper):
         if avail_el:
             disponible = self._parse_availability(avail_el.get_text(strip=True))
 
-        return precio, disponible
+        # Extraer variantes (colores, tamaños, etc.)
+        variantes = self._extract_variants(soup)
+
+        return precio, disponible, variantes
+
+    @staticmethod
+    def _extract_variants(soup: BeautifulSoup) -> list[str]:
+        """Extrae variantes de un producto desde WooCommerce (colores, tamaños, etc.)."""
+        variantes = []
+
+        # WooCommerce variation form: select option values
+        for select_el in soup.select("select option"):
+            value = select_el.get("value", "")
+            text = select_el.get_text(strip=True)
+            if value and value != "" and text and "Seleccionar" not in text and "Elige" not in text:
+                if text not in variantes:
+                    variantes.append(text)
+
+        # WooCommerce attribute table: tr > th + td
+        for row in soup.select("table.woocommerce-product-attributes tr"):
+            th = row.find("th")
+            td = row.find("td")
+            if th and td:
+                attr_label = th.get_text(strip=True).lower()
+                attr_value = td.get_text(strip=True)
+                if attr_value and attr_value not in variantes:
+                    variantes.append(attr_value)
+
+        # Información adicional section (AV Electronics usa esta estructura)
+        for row in soup.select(".woocommerce-product-attributes-item"):
+            label_el = row.select_one(".woocommerce-product-attributes-item__label")
+            value_el = row.select_one(".woocommerce-product-attributes-item__value")
+            if value_el:
+                val = value_el.get_text(strip=True)
+                if val and val not in variantes:
+                    variantes.append(val)
+
+        return variantes[:10]  # Limitar a 10 variantes
