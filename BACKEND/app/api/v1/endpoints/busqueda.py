@@ -11,7 +11,7 @@ from app.services.gemini.vision import identificar_componentes_imagen
 from app.services.gemini.chat import preguntar_agente
 from app.services.ingesta.filtro import extraer_componentes
 from app.services.scraping.busqueda import buscar_por_termino_priorizado
-from app.services.scraping.engine import buscar_por_termino
+from app.services.scraping.engine import buscar_por_termino, limpiar_cache_termino
 from app.services.configuracion import obtener_margen, obtener_tienda_propia
 
 router = APIRouter(prefix="/buscar", tags=["busqueda"])
@@ -72,6 +72,9 @@ async def buscar_componentes(
     3. Retorna opciones por componente, AV Electronics primero (sin margen)
     """
     componentes = extraer_componentes(body.texto)
+
+    # Limpiar cache en memoria para que cada búsqueda traiga resultados frescos
+    limpiar_cache_termino()
 
     # Deduplicación global: un producto solo aparece una vez en toda la lista
     # Procesamos secuencialmente para que el primer término que encuentre un producto se quede con él

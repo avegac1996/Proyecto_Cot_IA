@@ -61,6 +61,32 @@ export default function CargaPage() {
     await handleBuscarWith(mensaje)
   }
 
+  const autoAgregarAlCarrito = (resultados: ResultadoComponente[]) => {
+    const nuevosItems: ItemCarrito[] = []
+    for (const resultado of resultados) {
+      if (resultado.opciones.length > 0) {
+        const mejorOpcion = resultado.opciones[0]
+        const itemKey = `${resultado.termino} - ${mejorOpcion.tienda}`
+        const yaEnCarrito = carrito.some(
+          (item) =>
+            item.termino === itemKey &&
+            item.opcion_seleccionada.tienda === mejorOpcion.tienda &&
+            item.opcion_seleccionada.nombre_producto === mejorOpcion.nombre_producto
+        )
+        if (!yaEnCarrito) {
+          nuevosItems.push({
+            termino: itemKey,
+            cantidad: resultado.cantidad,
+            opcion_seleccionada: mejorOpcion,
+          })
+        }
+      }
+    }
+    if (nuevosItems.length > 0) {
+      setCarrito((prev) => [...prev, ...nuevosItems])
+    }
+  }
+
   const handleRecargar = async () => {
     if (!terminoBusqueda) return
     setIsLoading(true)
@@ -68,6 +94,7 @@ export default function CargaPage() {
     try {
       const data = await buscarComponentes(terminoBusqueda)
       setResultados(data.resultados)
+      autoAgregarAlCarrito(data.resultados)
     } catch (err) {
       const e = err as { response?: { data?: { detail?: { message?: string } } }; message?: string }
       setError(e.response?.data?.detail?.message || e.message || 'Error al recargar resultados')
@@ -86,6 +113,7 @@ export default function CargaPage() {
     try {
       const data = await buscarComponentes(trimmed)
       setResultados(data.resultados)
+      autoAgregarAlCarrito(data.resultados)
     } catch (err) {
       const e = err as { response?: { data?: { detail?: { message?: string } } }; message?: string }
       setError(e.response?.data?.detail?.message || e.message || 'Error al buscar componentes')

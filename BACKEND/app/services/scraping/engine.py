@@ -16,9 +16,9 @@ MAX_RESULTADOS_POR_TIENDA = 10
 SCRAPE_TIMEOUT_SECONDS = 15
 MAX_PRODUCT_PAGE_VISITS = 3
 
-# Cache en memoria por término (TTL 30 min)
+# Cache en memoria por término (TTL 2 min)
 _cache_termino: dict[str, tuple[datetime, list[dict]]] = {}
-CACHE_TERMINO_TTL = timedelta(minutes=30)
+CACHE_TERMINO_TTL = timedelta(minutes=2)
 
 
 async def buscar_precios(db: AsyncSession, producto: Producto) -> list[dict]:
@@ -164,3 +164,8 @@ async def buscar_por_termino(db: AsyncSession, termino: str) -> dict:
     _cache_termino[cache_key] = (datetime.now(), opciones)
 
     return {"termino": termino, "opciones": opciones, "fuente": "web_scraping"}
+
+
+def limpiar_cache_termino():
+    """Limpia el cache en memoria de búsquedas por término."""
+    _cache_termino.clear()
