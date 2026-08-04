@@ -72,11 +72,28 @@ async def buscar_componentes(
     3. Retorna opciones por componente, AV Electronics primero (sin margen)
     """
     componentes = extraer_componentes(body.texto)
-    resultados = await asyncio.gather(*[
-        buscar_por_termino_priorizado(db, comp["termino"], comp["cantidad"])
-        for comp in componentes
-    ])
-    return BusquedaResponse(resultados=list(resultados))
+
+    # Deduplicación global: un producto solo aparece una vez en toda la lista
+    # Procesamos secuencialmente para que el primer término que encuentre un producto se quede con él
+    productos_vistos = set()  # nombre_producto en lowercase
+    from app.services.scraping.sugerencias import sugerir_termino
+
+    resultados = []
+    for comp in componentes:
+        resultado = await buscar_por_termino_priorizado(db, comp["termino"], comp["cantidad"])
+        opciones_filtradas = []
+        for op in resultado.get("opciones", []):
+            nombre_key = op["nombre_producto"].strip().lower()
+            if nombre_key in productos_vistos:
+                continue
+            productos_vistos.add(nombre_key)
+            opciones_filtradas.append(op)
+        resultado["opciones"] = opciones_filtradas
+        if not opciones_filtradas and not resultado.get("sugerencia"):
+            resultado["sugerencia"] = sugerir_termino(comp["termino"])
+        resultados.append(resultado)
+
+    return BusquedaResponse(resultados=resultados)
 
 
 @router.post("/alternativas", response_model=AlternativaResponse)

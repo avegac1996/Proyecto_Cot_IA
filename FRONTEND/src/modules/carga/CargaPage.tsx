@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { Search, Loader2, AlertCircle, Send, Mic, Image as ImageIcon, FileText, Type, Info, ArrowLeft, Sparkles } from 'lucide-react'
+import { Search, Loader2, AlertCircle, Send, Mic, Image as ImageIcon, FileText, Type, Info, ArrowLeft, Sparkles, RotateCw } from 'lucide-react'
 import { buscarComponentes, crearCotizacionDesdeCarrito, getCotizacionById } from './services/busquedaService'
 import TarjetaProducto from './components/TarjetaProducto'
 import CarritoPreview from './components/CarritoPreview'
@@ -59,6 +59,21 @@ export default function CargaPage() {
 
   const handleBuscar = async () => {
     await handleBuscarWith(mensaje)
+  }
+
+  const handleRecargar = async () => {
+    if (!terminoBusqueda) return
+    setIsLoading(true)
+    setError(null)
+    try {
+      const data = await buscarComponentes(terminoBusqueda)
+      setResultados(data.resultados)
+    } catch (err) {
+      const e = err as { response?: { data?: { detail?: { message?: string } } }; message?: string }
+      setError(e.response?.data?.detail?.message || e.message || 'Error al recargar resultados')
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const handleBuscarWith = async (texto: string) => {
@@ -403,9 +418,29 @@ export default function CargaPage() {
           {/* Resultados de búsqueda */}
           {resultados.length > 0 && (
             <div ref={resultadosRef} className="space-y-3">
-              <h3 className="text-sm font-bold" style={{ color: 'var(--color-text)' }}>
-                Resultados ({resultados.length} {resultados.length === 1 ? 'componente' : 'componentes'})
-              </h3>
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-bold" style={{ color: 'var(--color-text)' }}>
+                  Resultados ({resultados.length} {resultados.length === 1 ? 'componente' : 'componentes'})
+                </h3>
+                <button
+                  onClick={handleRecargar}
+                  disabled={isLoading}
+                  title="Recargar resultados"
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 disabled:opacity-50"
+                  style={{
+                    border: '1px solid var(--color-border)',
+                    color: 'var(--color-text-muted)',
+                    backgroundColor: 'var(--color-surface)',
+                  }}
+                >
+                  {isLoading ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <RotateCw className="w-3.5 h-3.5" />
+                  )}
+                  Recargar
+                </button>
+              </div>
               <div className="max-h-[60vh] overflow-y-auto space-y-3 pr-1">
               {resultados.map((resultado, idx) => (
                 <div key={`${resultado.termino}-${idx}`} className="space-y-2">
