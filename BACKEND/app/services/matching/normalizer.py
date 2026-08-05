@@ -27,6 +27,11 @@ TIPOS_PALABRAS: dict[str, list[str]] = {
     "raspberry": ["raspberry", "raspberry pi", "rpi"],
     "bateria": ["bateria", "baterias", "pila", "pilas"],
     "porta_pila": ["porta pila", "porta pilas", "broche", "porta bateria", "clip bateria"],
+    "bomba": ["bomba", "bombas", "bomba de agua", "bomba agua"],
+    "regleta": ["regleta", "regletas", "tira de pines", "tira pines", "header"],
+    "terminal": ["terminal", "terminales", "terminal block", "bloque terminal", "kf301"],
+    "placa": ["placa", "placas", "placa perforada", "baquelita perforada", "placa universal"],
+    "caja": ["caja", "cajas", "caja de paso", "caja paso", "caja pvc"],
 }
 
 COLORES = ["rojo", "rojos", "verde", "verdes", "azul", "azules", "amarillo", "amarillos", "amarrillo", "amarrillos", "blanco", "blancos", "rgb", "naranja", "naranjas", "violeta", "morado", "morados", "negro", "negros"]
@@ -38,9 +43,25 @@ TIPOS_SENSOR = ["temperatura", "humedad", "distancia", "luz", "movimiento", "pro
 
 # Descriptores adicionales que enriquecen la busqueda
 DESCRIPCIONES_EXTRA = {
+    "modulo", "módulo", "pack", "kit", "set",
+    "electrolitico", "electrolítico", "ceramico", "cerámico", "poliester", "poliéster",
+    "tantalio", "smd", "dip", "tht", "through-hole",
+    "universal", "perforada", "baquelita",
+    "sumergible", "periferica", "periférica", "brushless",
+    "optoacoplado", "estado solido", "estado sólido",
+    "rango", "laser", "láser", "tof", "infrarrojo", "ultrasonico", "ultrasónico",
+    "nivel", "liquido", "líquido", "boya", "flotador",
+    "micro", "mini", "usb", "datos",
+    "dupont", "jumper",
+    "pines", "pin", "puntos", "canales", "canal",
+    "macho", "hembra", "tira", "regleta",
+    "bloque", "block", "terminal",
+    "caja", "paso", "pvc",
+    "surtido", "surtida",
+    "ac", "dc",
     "macho-hembra", "macho-macho", "hembra-hembra", "macho hembra", "macho macho",
     "pequeno", "pequena", "grande", "mediano",
-    "5v", "12v", "3v", "3.3v", "24v", "9v",
+    "5v", "12v", "3v", "3.3v", "24v", "9v", "220v",
     "330", "220", "470", "1k", "10k", "100k", "1m",
     "ohm", "ohms", "kohm", "kohms", "mohm",
     "activo", "pasivo",

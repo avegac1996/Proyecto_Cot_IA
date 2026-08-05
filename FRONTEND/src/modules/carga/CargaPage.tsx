@@ -136,7 +136,10 @@ export default function CargaPage() {
               item.opcion_seleccionada.nombre_producto === opcion.nombre_producto)
         )
       }
-      return [...prev, { termino: itemKey, cantidad, opcion_seleccionada: opcion }]
+      // Si ya hay una seleccion para este termino, las siguientes agregan cantidad 1
+      const alreadySelected = prev.some((item) => item.termino.startsWith(`${termino} - `))
+      const finalCantidad = alreadySelected ? 1 : cantidad
+      return [...prev, { termino: itemKey, cantidad: finalCantidad, opcion_seleccionada: opcion }]
     })
   }
 

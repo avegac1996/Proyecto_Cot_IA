@@ -28,19 +28,27 @@ def _normalizar(texto: str) -> str:
     # Sin tildes
     texto = unicodedata.normalize("NFD", texto)
     texto = "".join(c for c in texto if unicodedata.category(c) != "Mn")
-    # Eliminar puntuación (¿?¡!.,;:()[]{}'"...)
-    texto = re.sub(r"[¿?¡!.,;:()\[\]{}'\"\\\/]", " ", texto)
+    # Eliminar puntuación (¿?¡!.,;:()[]{}'"-...)
+    texto = re.sub(r"[¿?¡!.,;:()\[\]{}'\"\\\/\-]", " ", texto)
     # Múltiples espacios → uno solo
     texto = re.sub(r"\s+", " ", texto)
     return texto.strip()
 
 
 def _construir_diccionario_busqueda() -> dict[str, str]:
-    """Construye un diccionario término → tipo desde TIPOS_PALABRAS y listas auxiliares."""
+    """Construye un diccionario término → tipo desde TIPOS_PALABRAS y listas auxiliares.
+
+    Agrega variantes con espacio para términos letra+numero pegados:
+    "esp32" -> tambien reconoce "esp 32", "hc05" -> "hc 05", etc.
+    """
     dic = {}
     for tipo, palabras in TIPOS_PALABRAS.items():
         for palabra in palabras:
             dic[palabra] = tipo
+            # Variante con espacio: "esp32" -> "esp 32", "hc05" -> "hc 05"
+            match = re.match(r"^([a-z]+)(\d+)$", palabra)
+            if match:
+                dic[f"{match.group(1)} {match.group(2)}"] = tipo
     # Agregar tipos específicos de sensor
     for sensor_tipo in TIPOS_SENSOR:
         dic[sensor_tipo] = "sensor"
@@ -66,6 +74,23 @@ _PALABRAS_COMPONENTE = {
     p for p, tipo in _DICCIONARIO.items()
     if tipo not in ("color", "tamano", "descriptor")
 }
+
+# Tipos que son compatibles entre si (se consumen como descriptores)
+_TIPOS_COMPATIBLES: dict[str, set[str]] = {
+    "wifi": {"bluetooth"},
+    "bluetooth": {"wifi"},
+}
+
+# Palabras que se ignoran silenciosamente durante el scan de descriptores
+_STOP_WORDS = {"de", "del", "la", "el", "los", "las", "con", "para", "en", "y", "un", "una", "datos", "poder", "agua"}
+
+
+def _es_modelo_o_spec(palabra: str) -> bool:
+    """Detecta si una palabra es un modelo o especificacion (contiene letras y numeros).
+
+    Ejemplos: bme680, vl53l1x, kf301, 5v, 16v, 2a, 470uf, i2c, hc06
+    """
+    return any(c.isalpha() for c in palabra) and any(c.isdigit() for c in palabra)
 
 
 def _extraer_cantidad(texto: str, posicion: int) -> int:
@@ -120,6 +145,17 @@ def _buscar_descriptores(
     j = fin
     while j < len(palabras) and not consumido[j]:
         palabra = palabras[j]
+        # Ignorar stop words (de, del, la, el, etc.)
+        if palabra in _STOP_WORDS:
+            consumido[j] = True
+            j += 1
+            continue
+        # Capturar modelos y especificaciones alfanumericas (bme680, vl53l1x, 5v, etc.)
+        if _es_modelo_o_spec(palabra) and palabra not in _DICCIONARIO:
+            descriptores.append(palabra)
+            consumido[j] = True
+            j += 1
+            continue
         # Si es un número, verificar si es cantidad de otro componente o especificación
         if palabra.isdigit():
             # Si la siguiente palabra es un componente conocido, parar (nueva línea)
@@ -165,6 +201,14 @@ def _buscar_descriptores(
                         j += v
                         encontrado = True
                         break
+                    elif tipo_ngram in _TIPOS_COMPATIBLES.get(tipo_componente, set()):
+                        # Tipo compatible (ej: bluetooth junto a wifi), consumir como descriptor
+                        descriptores.append(ngram)
+                        for k in range(j, j + v):
+                            consumido[k] = True
+                        j += v
+                        encontrado = True
+                        break
                     elif tipo_ngram in ("color", "tamano", "descriptor"):
                         if tipo_ngram == "color":
                             descriptores.append(_singularizar_color(ngram))
@@ -186,10 +230,20 @@ def _buscar_descriptores(
         # Si es un número, no consumir (lo maneja _extraer_cantidad)
         if palabra.isdigit():
             break
+        # Ignorar stop words hacia atras
+        if palabra in _STOP_WORDS:
+            consumido[j] = True
+            j -= 1
+            continue
         if palabra in _DICCIONARIO:
             tipo_palabra = _DICCIONARIO[palabra]
             if tipo_palabra == tipo_componente:
                 # Sinónimo del mismo componente, consumir sin agregar
+                consumido[j] = True
+                j -= 1
+                continue
+            elif tipo_palabra in _TIPOS_COMPATIBLES.get(tipo_componente, set()):
+                descriptores.insert(0, palabra)
                 consumido[j] = True
                 j -= 1
                 continue
@@ -201,29 +255,28 @@ def _buscar_descriptores(
                 consumido[j] = True
                 j -= 1
                 continue
+        # Capturar modelos/especificaciones hacia atras
+        if _es_modelo_o_spec(palabra):
+            descriptores.insert(0, palabra)
+            consumido[j] = True
+            j -= 1
+            continue
         break
 
     return descriptores
 
 
-def extraer_componentes(mensaje: str) -> list[dict]:
-    """Extrae componentes electrónicos de un mensaje conversacional.
-
-    Usa n-grams (3→2→1) contra el diccionario TIPOS_PALABRAS.
-    Captura descriptores adyacentes (colores, tamaños, especificaciones)
-    para enriquecer el término de búsqueda.
-
-    Returns:
-        list[dict] con keys: termino (str), cantidad (int), tipo (str)
-    """
-    texto = _normalizar(mensaje)
-    if not texto:
-        return []
-
+def _extraer_de_linea(texto: str) -> list[dict]:
+    """Extrae componentes de una sola linea de texto normalizado."""
     palabras = texto.split()
     n = len(palabras)
     consumido = [False] * n
     resultados: list[dict] = []
+
+    # Si la linea empieza con numero, es la cantidad por defecto
+    cantidad_default = 1
+    if palabras and palabras[0].isdigit():
+        cantidad_default = int(palabras[0])
 
     # Ventana de 3 → 2 → 1 palabras
     for ventana in (3, 2, 1):
@@ -244,6 +297,9 @@ def extraer_componentes(mensaje: str) -> list[dict]:
                 # Calcular posición en texto original para extraer cantidad
                 pos_aprox = len(" ".join(palabras[:i])) + (1 if i > 0 else 0)
                 cantidad = _extraer_cantidad(texto, pos_aprox)
+                # Si no se encontro numero adyacente, usar el de la linea
+                if cantidad == 1 and cantidad_default > 1:
+                    cantidad = cantidad_default
 
                 # Marcar palabras del componente como consumidas
                 for j in range(i, i + ventana):
@@ -264,9 +320,28 @@ def extraer_componentes(mensaje: str) -> list[dict]:
                     "descriptores": descriptores,
                     "cantidad": cantidad,
                     "tipo": tipo,
-                    "_pos": i,
                 })
 
-    # Ordenar por posición original en el texto (mismo orden que el cliente)
-    resultados.sort(key=lambda r: r.pop("_pos", 0))
+    return resultados
+
+
+def extraer_componentes(mensaje: str) -> list[dict]:
+    """Extrae componentes electrónicos de un mensaje conversacional.
+
+    Procesa linea por linea para no mezclar componentes de diferentes lineas.
+    Usa n-grams (3→2→1) contra el diccionario TIPOS_PALABRAS.
+    Captura descriptores adyacentes (colores, tamaños, especificaciones)
+    para enriquecer el término de búsqueda.
+
+    Returns:
+        list[dict] con keys: termino (str), cantidad (int), tipo (str)
+    """
+    resultados: list[dict] = []
+
+    for linea in mensaje.split("\n"):
+        texto = _normalizar(linea)
+        if not texto:
+            continue
+        resultados.extend(_extraer_de_linea(texto))
+
     return resultados
