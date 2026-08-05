@@ -65,6 +65,18 @@ export async function actualizarEnvio(
   return data
 }
 
+export async function actualizarCliente(
+  cotizacionId: number,
+  cliente: { nombre: string; correo: string; celular: string }
+): Promise<Cotizacion> {
+  const { data } = await api.put<Cotizacion>(`/cotizacion/${cotizacionId}/cliente`, {
+    cliente_nombre: cliente.nombre,
+    cliente_correo: cliente.correo,
+    cliente_celular: cliente.celular,
+  })
+  return data
+}
+
 export function extractHistorialError(error: unknown): string {
   const err = error as { response?: { data?: { detail?: { message?: string } } } }
   return err.response?.data?.detail?.message || 'Error al cargar el historial'

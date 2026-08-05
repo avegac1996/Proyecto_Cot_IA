@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { AlertCircle, Eye, History, Loader2, Trash2, Download, X, FileText, Lock, Plus, Search, ChevronLeft, ChevronRight, Calendar, Truck } from 'lucide-react'
+import { AlertCircle, Eye, History, Loader2, Trash2, Download, X, FileText, Lock, Plus, Search, ChevronLeft, ChevronRight, Calendar, Truck, UserCog } from 'lucide-react'
 import type { CotizacionListItem, Cotizacion, OpcionEnvio } from '@/shared/types'
 import {
   extractHistorialError,
@@ -10,6 +10,7 @@ import {
   descargarPDF,
   finalizarCotizacion,
   actualizarEnvio,
+  actualizarCliente,
 } from './services/historialService'
 import EnvioModal from '@/modules/carga/components/EnvioModal'
 
@@ -37,6 +38,9 @@ export default function HistorialPage() {
   const [finalizando, setFinalizando] = useState(false)
   const [mostrarModalEnvio, setMostrarModalEnvio] = useState(false)
   const [guardandoEnvio, setGuardandoEnvio] = useState(false)
+  const [editandoCliente, setEditandoCliente] = useState(false)
+  const [guardandoCliente, setGuardandoCliente] = useState(false)
+  const [clienteForm, setClienteForm] = useState({ nombre: '', correo: '', celular: '' })
 
   // Paginación y filtros
   const [page, setPage] = useState(1)
@@ -135,6 +139,30 @@ export default function HistorialPage() {
       setError('Error al actualizar el envío')
     } finally {
       setGuardandoEnvio(false)
+    }
+  }
+
+  const handleEditarCliente = () => {
+    if (!cotizacionDetalle) return
+    setClienteForm({
+      nombre: cotizacionDetalle.cliente_nombre || '',
+      correo: cotizacionDetalle.cliente_correo || '',
+      celular: cotizacionDetalle.cliente_celular || '',
+    })
+    setEditandoCliente(true)
+  }
+
+  const handleGuardarCliente = async () => {
+    if (!cotizacionDetalle) return
+    setGuardandoCliente(true)
+    try {
+      const data = await actualizarCliente(cotizacionDetalle.cotizacion_id, clienteForm)
+      setCotizacionDetalle(data)
+      setEditandoCliente(false)
+    } catch {
+      setError('Error al actualizar los datos del cliente')
+    } finally {
+      setGuardandoCliente(false)
     }
   }
 
@@ -510,31 +538,98 @@ export default function HistorialPage() {
                 </span>
               </div>
 
-              {(cotizacionDetalle.cliente_nombre || cotizacionDetalle.cliente_correo || cotizacionDetalle.cliente_celular) && (
-                <div
-                  className="rounded-lg border p-3 mb-4 text-sm space-y-1"
-                  style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-bg)' }}
-                >
-                  {cotizacionDetalle.cliente_nombre && (
-                    <div style={{ color: 'var(--color-text)' }}>
-                      <span className="font-medium" style={{ color: 'var(--color-text-muted)' }}>Cliente: </span>
-                      {cotizacionDetalle.cliente_nombre}
+              <div
+                className="rounded-lg border p-3 mb-4 text-sm space-y-1"
+                style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-bg)' }}
+              >
+                {!editandoCliente ? (
+                  <>
+                    {(cotizacionDetalle.cliente_nombre || cotizacionDetalle.cliente_correo || cotizacionDetalle.cliente_celular) ? (
+                      <>
+                        {cotizacionDetalle.cliente_nombre && (
+                          <div style={{ color: 'var(--color-text)' }}>
+                            <span className="font-medium" style={{ color: 'var(--color-text-muted)' }}>Cliente: </span>
+                            {cotizacionDetalle.cliente_nombre}
+                          </div>
+                        )}
+                        {cotizacionDetalle.cliente_correo && (
+                          <div style={{ color: 'var(--color-text)' }}>
+                            <span className="font-medium" style={{ color: 'var(--color-text-muted)' }}>Correo: </span>
+                            {cotizacionDetalle.cliente_correo}
+                          </div>
+                        )}
+                        {cotizacionDetalle.cliente_celular && (
+                          <div style={{ color: 'var(--color-text)' }}>
+                            <span className="font-medium" style={{ color: 'var(--color-text-muted)' }}>Celular: </span>
+                            {cotizacionDetalle.cliente_celular}
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div style={{ color: 'var(--color-text-muted)' }}>Sin datos de cliente</div>
+                    )}
+                    {cotizacionDetalle.estado !== 'finalizada' && (
+                      <button
+                        onClick={handleEditarCliente}
+                        className="mt-2 flex items-center gap-1.5 text-xs font-medium transition-colors"
+                        style={{ color: 'var(--color-primary)' }}
+                      >
+                        <UserCog className="w-3.5 h-3.5" />
+                        Modificar cliente
+                      </button>
+                    )}
+                  </>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium" style={{ color: 'var(--color-text)' }}>Editar cliente</span>
+                      <button
+                        onClick={() => setEditandoCliente(false)}
+                        className="p-1 rounded"
+                        style={{ color: 'var(--color-text-muted)' }}
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
                     </div>
-                  )}
-                  {cotizacionDetalle.cliente_correo && (
-                    <div style={{ color: 'var(--color-text)' }}>
-                      <span className="font-medium" style={{ color: 'var(--color-text-muted)' }}>Correo: </span>
-                      {cotizacionDetalle.cliente_correo}
-                    </div>
-                  )}
-                  {cotizacionDetalle.cliente_celular && (
-                    <div style={{ color: 'var(--color-text)' }}>
-                      <span className="font-medium" style={{ color: 'var(--color-text-muted)' }}>Celular: </span>
-                      {cotizacionDetalle.cliente_celular}
-                    </div>
-                  )}
-                </div>
-              )}
+                    <input
+                      type="text"
+                      placeholder="Nombre"
+                      value={clienteForm.nombre}
+                      onChange={(e) => setClienteForm({ ...clienteForm, nombre: e.target.value })}
+                      className="w-full px-3 py-2 rounded-lg border text-sm outline-none"
+                      style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface)', color: 'var(--color-text)' }}
+                    />
+                    <input
+                      type="email"
+                      placeholder="Correo"
+                      value={clienteForm.correo}
+                      onChange={(e) => setClienteForm({ ...clienteForm, correo: e.target.value })}
+                      className="w-full px-3 py-2 rounded-lg border text-sm outline-none"
+                      style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface)', color: 'var(--color-text)' }}
+                    />
+                    <input
+                      type="text"
+                      placeholder="Celular"
+                      value={clienteForm.celular}
+                      onChange={(e) => setClienteForm({ ...clienteForm, celular: e.target.value })}
+                      className="w-full px-3 py-2 rounded-lg border text-sm outline-none"
+                      style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface)', color: 'var(--color-text)' }}
+                    />
+                    <button
+                      onClick={handleGuardarCliente}
+                      disabled={guardandoCliente}
+                      className="w-full py-2 rounded-lg font-medium text-white text-sm transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
+                      style={{ backgroundColor: 'var(--color-primary)' }}
+                    >
+                      {guardandoCliente ? (
+                        <><Loader2 className="w-4 h-4 animate-spin" /> Guardando...</>
+                      ) : (
+                        'Guardar cambios'
+                      )}
+                    </button>
+                  </div>
+                )}
+              </div>
 
               {cotizacionDetalle.estado === 'finalizada' && (
                 <div

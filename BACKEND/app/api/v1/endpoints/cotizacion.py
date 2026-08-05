@@ -438,6 +438,36 @@ async def actualizar_envio_cotizacion(
     return _to_response(cotizacion)
 
 
+class ActualizarClienteRequest(BaseModel):
+    cliente_nombre: str | None = None
+    cliente_correo: str | None = None
+    cliente_celular: str | None = None
+
+
+@router.put("/cotizacion/{cotizacion_id}/cliente", response_model=CotizacionResponse)
+async def actualizar_cliente_cotizacion(
+    cotizacion_id: int,
+    body: ActualizarClienteRequest,
+    db: AsyncSession = Depends(get_db),
+    user: Usuario = Depends(get_current_user),
+):
+    """Actualiza solo los datos del cliente de una cotización existente."""
+    cotizacion = await _get_cotizacion_by_id(cotizacion_id, user, db)
+
+    if cotizacion.estado == "finalizada":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"code": "COTIZACION_LOCKED", "message": "La cotización ya está finalizada"},
+        )
+
+    cotizacion.cliente_nombre = body.cliente_nombre
+    cotizacion.cliente_correo = body.cliente_correo
+    cotizacion.cliente_celular = body.cliente_celular
+    await db.commit()
+    await db.refresh(cotizacion)
+    return _to_response(cotizacion)
+
+
 @router.post("/cotizacion/{cotizacion_id}/agregar", response_model=CotizacionResponse)
 async def agregar_item_carrito(
     cotizacion_id: int,
