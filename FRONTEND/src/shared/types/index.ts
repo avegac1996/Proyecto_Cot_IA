@@ -82,6 +82,8 @@ export interface Cotizacion {
   cliente_nombre: string | null
   cliente_correo: string | null
   cliente_celular: string | null
+  envio_nombre: string | null
+  envio_precio: string | null
 }
 
 export interface CotizacionListItem {
@@ -128,6 +130,12 @@ export interface ConfiguracionNegocio {
   margen_competencia: number
   tienda_propia: string
   iva: number
+}
+
+export interface OpcionEnvio {
+  id: string
+  nombre: string
+  precio: number
 }
 
 export interface ItemCarrito {

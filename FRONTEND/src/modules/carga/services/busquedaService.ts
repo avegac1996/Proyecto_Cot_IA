@@ -1,5 +1,5 @@
 import api from '@/shared/lib/api'
-import type { BusquedaResponse, ConfiguracionNegocio, ItemCarrito, Cotizacion, OpcionProducto, ResultadoComponente } from '@/shared/types'
+import type { BusquedaResponse, ConfiguracionNegocio, ItemCarrito, Cotizacion, OpcionProducto, OpcionEnvio, ResultadoComponente } from '@/shared/types'
 
 export async function buscarComponentes(texto: string): Promise<BusquedaResponse> {
   const { data } = await api.post<BusquedaResponse>('/buscar', { texto })
@@ -69,10 +69,36 @@ export async function actualizarIva(iva: number): Promise<ConfiguracionNegocio> 
   return data
 }
 
+export async function getOpcionesEnvio(): Promise<OpcionEnvio[]> {
+  const { data } = await api.get<OpcionEnvio[]>('/configuracion/envio')
+  return data
+}
+
+export async function actualizarOpcionesEnvio(opciones: OpcionEnvio[]): Promise<OpcionEnvio[]> {
+  const { data } = await api.put<OpcionEnvio[]>('/configuracion/envio', { opciones })
+  return data
+}
+
+export async function getGeminiApiKey(): Promise<{ api_key: string; has_key: boolean }> {
+  const { data } = await api.get<{ api_key: string; has_key: boolean }>('/configuracion/gemini-key')
+  return data
+}
+
+export async function revelarGeminiApiKey(password: string): Promise<string> {
+  const { data } = await api.post<{ api_key: string }>('/configuracion/gemini-key/revelar', { password })
+  return data.api_key
+}
+
+export async function actualizarGeminiApiKey(apiKey: string): Promise<string> {
+  const { data } = await api.put<{ api_key: string }>('/configuracion/gemini-key', { api_key: apiKey })
+  return data.api_key
+}
+
 export async function crearCotizacionDesdeCarrito(
   items: ItemCarrito[],
   cotizacionId?: number,
-  cliente?: { nombre: string; correo: string; celular: string }
+  cliente?: { nombre: string; correo: string; celular: string },
+  envio?: OpcionEnvio | null
 ): Promise<Cotizacion> {
   const payload = {
     items: items.map((item) => ({
@@ -89,6 +115,8 @@ export async function crearCotizacionDesdeCarrito(
     cliente_nombre: cliente?.nombre || null,
     cliente_correo: cliente?.correo || null,
     cliente_celular: cliente?.celular || null,
+    envio_nombre: envio?.nombre || null,
+    envio_precio: envio?.precio ?? null,
   }
   const { data } = await api.post<Cotizacion>('/cotizacion/desde-carrito', payload)
   return data

@@ -8,8 +8,9 @@ import VoiceInput from './components/VoiceInput'
 import ImageInput from './components/ImageInput'
 import FileInput from './components/FileInput'
 import ClienteModal from './components/ClienteModal'
+import EnvioModal from './components/EnvioModal'
 import AgenteChat from './components/AgenteChat'
-import type { ResultadoComponente, OpcionProducto, ItemCarrito } from '@/shared/types'
+import type { ResultadoComponente, OpcionProducto, ItemCarrito, OpcionEnvio } from '@/shared/types'
 
 export default function CargaPage() {
   const navigate = useNavigate()
@@ -21,9 +22,12 @@ export default function CargaPage() {
   const [carrito, setCarrito] = useState<ItemCarrito[]>([])
   const [metodoActivo, setMetodoActivo] = useState<'texto' | 'voz' | 'imagen' | 'archivo'>('texto')
   const [mostrarModalCliente, setMostrarModalCliente] = useState(false)
+  const [mostrarModalEnvio, setMostrarModalEnvio] = useState(false)
+  const [datosCliente, setDatosCliente] = useState<{ nombre: string; correo: string; celular: string } | null>(null)
   const [mostrarAgente, setMostrarAgente] = useState(false)
   const [busquedaRealizada, setBusquedaRealizada] = useState(false)
   const [terminoBusqueda, setTerminoBusqueda] = useState('')
+  const [resetKey, setResetKey] = useState(0)
   const resultadosRef = useRef<HTMLDivElement>(null)
   const editandoCotizacionId = (location.state as { cotizacionId?: number } | null)?.cotizacionId ?? null
 
@@ -51,6 +55,14 @@ export default function CargaPage() {
           },
         }))
         setCarrito(itemsExistentes)
+        // Guardar datos del cliente existentes para no volver a pedirlos
+        if (cot.cliente_nombre || cot.cliente_correo || cot.cliente_celular) {
+          setDatosCliente({
+            nombre: cot.cliente_nombre || '',
+            correo: cot.cliente_correo || '',
+            celular: cot.cliente_celular || '',
+          })
+        }
       }).catch(() => {
         setError('No se pudo cargar la cotización existente')
       })
@@ -61,46 +73,27 @@ export default function CargaPage() {
     await handleBuscarWith(mensaje)
   }
 
-  const autoAgregarAlCarrito = (resultados: ResultadoComponente[]) => {
-    const nuevosItems: ItemCarrito[] = []
-    for (const resultado of resultados) {
-      if (resultado.opciones.length > 0) {
-        const mejorOpcion = resultado.opciones[0]
-        const itemKey = `${resultado.termino} - ${mejorOpcion.tienda}`
-        const yaEnCarrito = carrito.some(
-          (item) =>
-            item.termino === itemKey &&
-            item.opcion_seleccionada.tienda === mejorOpcion.tienda &&
-            item.opcion_seleccionada.nombre_producto === mejorOpcion.nombre_producto
-        )
-        if (!yaEnCarrito) {
-          nuevosItems.push({
-            termino: itemKey,
-            cantidad: resultado.cantidad,
-            opcion_seleccionada: mejorOpcion,
-          })
-        }
-      }
-    }
-    if (nuevosItems.length > 0) {
-      setCarrito((prev) => [...prev, ...nuevosItems])
+  const guardarHistorialBusqueda = (termino: string, numResultados: number) => {
+    try {
+      const key = 'historial_busquedas'
+      const stored = localStorage.getItem(key)
+      const historial: { termino: string; fecha: string; resultados: number }[] = stored ? JSON.parse(stored) : []
+      historial.unshift({ termino, fecha: new Date().toISOString(), resultados: numResultados })
+      const limitado = historial.slice(0, 20)
+      localStorage.setItem(key, JSON.stringify(limitado))
+    } catch {
+      // localStorage no disponible, ignorar
     }
   }
 
-  const handleRecargar = async () => {
-    if (!terminoBusqueda) return
-    setIsLoading(true)
+  const handleRecargar = () => {
+    setResultados([])
+    setCarrito([])
+    setBusquedaRealizada(false)
+    setTerminoBusqueda('')
+    setMensaje('')
     setError(null)
-    try {
-      const data = await buscarComponentes(terminoBusqueda)
-      setResultados(data.resultados)
-      autoAgregarAlCarrito(data.resultados)
-    } catch (err) {
-      const e = err as { response?: { data?: { detail?: { message?: string } } }; message?: string }
-      setError(e.response?.data?.detail?.message || e.message || 'Error al recargar resultados')
-    } finally {
-      setIsLoading(false)
-    }
+    setResetKey(k => k + 1)
   }
 
   const handleBuscarWith = async (texto: string) => {
@@ -113,7 +106,7 @@ export default function CargaPage() {
     try {
       const data = await buscarComponentes(trimmed)
       setResultados(data.resultados)
-      autoAgregarAlCarrito(data.resultados)
+      guardarHistorialBusqueda(trimmed, data.resultados.length)
     } catch (err) {
       const e = err as { response?: { data?: { detail?: { message?: string } } }; message?: string }
       setError(e.response?.data?.detail?.message || e.message || 'Error al buscar componentes')
@@ -160,12 +153,12 @@ export default function CargaPage() {
     handleBuscarWith(sugerencia)
   }
 
-  const handleFinalizar = async (cliente?: { nombre: string; correo: string; celular: string }) => {
+  const handleFinalizar = async (cliente?: { nombre: string; correo: string; celular: string }, envio?: OpcionEnvio | null) => {
     if (carrito.length === 0) return
     setIsLoading(true)
     setError(null)
     try {
-      const cotizacion = await crearCotizacionDesdeCarrito(carrito, editandoCotizacionId ?? undefined, cliente)
+      const cotizacion = await crearCotizacionDesdeCarrito(carrito, editandoCotizacionId ?? undefined, cliente, envio)
       navigate('/historial', { state: { cotizacionCreada: cotizacion.cotizacion_id } })
     } catch (err) {
       const e = err as { response?: { data?: { detail?: unknown } }; message?: string }
@@ -180,6 +173,7 @@ export default function CargaPage() {
     } finally {
       setIsLoading(false)
       setMostrarModalCliente(false)
+      setMostrarModalEnvio(false)
     }
   }
 
@@ -210,23 +204,18 @@ export default function CargaPage() {
             </p>
           </div>
         </div>
-        {busquedaRealizada && resultados.length > 0 && (
+        {(busquedaRealizada || carrito.length > 0 || resultados.length > 0) && (
           <button
             onClick={handleRecargar}
-            disabled={isLoading}
-            title="Recargar resultados"
-            className="px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 disabled:opacity-50"
+            title="Limpiar todo"
+            className="px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
             style={{
               border: '1px solid var(--color-border)',
               color: 'var(--color-text-muted)',
               backgroundColor: 'var(--color-surface)',
             }}
           >
-            {isLoading ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <RotateCw className="w-4 h-4" />
-            )}
+            <RotateCw className="w-4 h-4" />
             Recargar
           </button>
         )}
@@ -379,7 +368,7 @@ export default function CargaPage() {
                 <p className="text-xs text-center" style={{ color: 'var(--color-text-muted)' }}>
                   Sube una foto de tu lista de componentes. Extraeremos el texto automáticamente.
                 </p>
-                <ImageInput onTextExtracted={handleVoiceTranscript} disabled={isLoading} />
+                <ImageInput key={`img-${resetKey}`} onTextExtracted={handleVoiceTranscript} disabled={isLoading} />
                 {mensaje && (
                   <div className="flex gap-2">
                     <button
@@ -417,7 +406,7 @@ export default function CargaPage() {
                 <p className="text-xs text-center" style={{ color: 'var(--color-text-muted)' }}>
                   Sube un PDF, Word, Excel o TXT con tu lista de componentes.
                 </p>
-                <FileInput onTextExtracted={handleVoiceTranscript} disabled={isLoading} />
+                <FileInput key={`file-${resetKey}`} onTextExtracted={handleVoiceTranscript} disabled={isLoading} />
                 {mensaje && (
                   <div className="flex gap-2">
                     <button
@@ -518,7 +507,14 @@ export default function CargaPage() {
             items={carrito}
             onQuitar={handleQuitarCarrito}
             onCambiarCantidad={handleCambiarCantidad}
-            onFinalizar={() => editandoCotizacionId ? handleFinalizar() : setMostrarModalCliente(true)}
+            onFinalizar={() => {
+              if (editandoCotizacionId && datosCliente) {
+                // Editando cotización existente: saltar modal de cliente, ir directo a envío
+                setMostrarModalEnvio(true)
+              } else {
+                setMostrarModalCliente(true)
+              }
+            }}
             disabled={carrito.length === 0 || isLoading}
           />
           </div>
@@ -527,8 +523,20 @@ export default function CargaPage() {
 
       {mostrarModalCliente && (
         <ClienteModal
-          onSubmit={(data) => handleFinalizar(data)}
+          onSubmit={(data) => {
+            setDatosCliente(data)
+            setMostrarModalCliente(false)
+            setMostrarModalEnvio(true)
+          }}
           onCancel={() => setMostrarModalCliente(false)}
+          isLoading={isLoading}
+        />
+      )}
+
+      {mostrarModalEnvio && (
+        <EnvioModal
+          onSubmit={(envio) => handleFinalizar(datosCliente ?? undefined, envio)}
+          onCancel={() => setMostrarModalEnvio(false)}
           isLoading={isLoading}
         />
       )}

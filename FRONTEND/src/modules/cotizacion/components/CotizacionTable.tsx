@@ -8,6 +8,7 @@ interface Props {
   onAgregarItem?: (texto: string) => void
   onFinalizar?: () => void
   selectingId?: number | null
+  ivaPct?: number
 }
 
 function money(value: string | number): string {
@@ -69,7 +70,7 @@ function OpcionesProveedor({
   )
 }
 
-export default function CotizacionTable({ cotizacion, onSelectProveedor, onAgregarItem, onFinalizar, selectingId }: Props) {
+export default function CotizacionTable({ cotizacion, onSelectProveedor, onAgregarItem, onFinalizar, selectingId, ivaPct = 0 }: Props) {
   const [nuevoItem, setNuevoItem] = useState('')
   const [adding, setAdding] = useState(false)
   const [finishing, setFinishing] = useState(false)
@@ -182,12 +183,51 @@ export default function CotizacionTable({ cotizacion, onSelectProveedor, onAgreg
               ))}
             </tbody>
             <tfoot>
+              <tr className="border-t" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-bg)' }}>
+                <td colSpan={4} className="px-4 py-3 text-right font-medium" style={{ color: 'var(--color-text)' }}>
+                  Subtotal
+                </td>
+                <td className="px-4 py-3 text-right font-medium" style={{ color: 'var(--color-text)' }}>
+                  {money(cotizacion.total)}
+                </td>
+                <td />
+              </tr>
+              <tr style={{ backgroundColor: 'var(--color-bg)' }}>
+                <td colSpan={4} className="px-4 py-2 text-right text-sm" style={{ color: 'var(--color-text-muted)' }}>
+                  {cotizacion.envio_nombre
+                    ? `Envío (${cotizacion.envio_nombre})`
+                    : 'Envío (no seleccionado)'}
+                </td>
+                <td className="px-4 py-2 text-right text-sm font-medium" style={{ color: 'var(--color-text)' }}>
+                  {cotizacion.envio_precio != null ? money(cotizacion.envio_precio) : '—'}
+                </td>
+                <td />
+              </tr>
+              {ivaPct > 0 && (
+                <tr style={{ backgroundColor: 'var(--color-bg)' }}>
+                  <td colSpan={4} className="px-4 py-2 text-right text-sm" style={{ color: 'var(--color-text-muted)' }}>
+                    IVA ({ivaPct}%)
+                  </td>
+                  <td className="px-4 py-2 text-right text-sm font-medium" style={{ color: 'var(--color-text)' }}>
+                    {money(
+                      (Number(cotizacion.total) + Number(cotizacion.envio_precio ?? 0)) * ivaPct / 100
+                    )}
+                  </td>
+                  <td />
+                </tr>
+              )}
               <tr className="border-t-2" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-bg)' }}>
                 <td colSpan={4} className="px-4 py-3 text-right font-bold" style={{ color: 'var(--color-text)' }}>
                   TOTAL
                 </td>
                 <td className="px-4 py-3 text-right font-bold text-lg" style={{ color: 'var(--color-primary)' }}>
-                  {money(cotizacion.total)}
+                  {(() => {
+                    const subtotal = Number(cotizacion.total)
+                    const envio = Number(cotizacion.envio_precio ?? 0)
+                    const base = subtotal + envio
+                    const iva = ivaPct > 0 ? base * ivaPct / 100 : 0
+                    return money(base + iva)
+                  })()}
                 </td>
                 <td />
               </tr>

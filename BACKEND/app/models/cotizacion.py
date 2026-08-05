@@ -18,6 +18,8 @@ class Cotizacion(Base):
     cliente_nombre: Mapped[str | None] = mapped_column(String(255), nullable=True)
     cliente_correo: Mapped[str | None] = mapped_column(String(255), nullable=True)
     cliente_celular: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    envio_nombre: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    envio_precio: Mapped[Decimal | None] = mapped_column(Numeric(10, 2), nullable=True)
     fecha_creacion: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     fecha_actualizacion: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
     estado: Mapped[str] = mapped_column(String(20), default="pendiente", nullable=False)

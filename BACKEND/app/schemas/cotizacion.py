@@ -41,6 +41,8 @@ class CotizacionResponse(BaseModel):
     cliente_nombre: str | None = None
     cliente_correo: str | None = None
     cliente_celular: str | None = None
+    envio_nombre: str | None = None
+    envio_precio: Decimal | None = None
 
     model_config = {"from_attributes": True}
 

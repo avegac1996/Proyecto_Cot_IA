@@ -221,14 +221,22 @@ def generate_pdf(cotizacion: Cotizacion, iva_pct: float = 15.0) -> bytes:
 
     # Subtotal, IVA, Total rows
     subtotal = cotizacion.total
-    iva_amount = (subtotal * Decimal(str(iva_pct)) / Decimal("100")).quantize(Decimal("0.01"))
-    total_con_iva = (subtotal + iva_amount).quantize(Decimal("0.01"))
+    envio_precio = cotizacion.envio_precio if cotizacion.envio_precio is not None else Decimal("0")
+    subtotal_con_envio = (subtotal + envio_precio).quantize(Decimal("0.01"))
+    iva_amount = (subtotal_con_envio * Decimal(str(iva_pct)) / Decimal("100")).quantize(Decimal("0.01"))
+    total_con_iva = (subtotal_con_envio + iva_amount).quantize(Decimal("0.01"))
 
     rows.append([
         "", "",
         Paragraph("Subtotal:", total_label_style),
         Paragraph(_money(subtotal), total_value_style),
     ])
+    if cotizacion.envio_nombre:
+        rows.append([
+            "", "",
+            Paragraph(f"Envío ({cotizacion.envio_nombre}):", total_label_style),
+            Paragraph(_money(envio_precio), total_value_style),
+        ])
     rows.append([
         "", "",
         Paragraph(f"IVA ({iva_pct:.0f}%):", total_label_style),
@@ -242,6 +250,9 @@ def generate_pdf(cotizacion: Cotizacion, iva_pct: float = 15.0) -> bytes:
 
     col_widths = [3.5 * inch, 0.7 * inch, 1.2 * inch, 1.2 * inch]
     table = Table(rows, colWidths=col_widths, repeatRows=1)
+    # Number of summary rows at the bottom (subtotal, [envío], iva, total)
+    num_summary = 4 if cotizacion.envio_nombre else 3
+    body_end = -num_summary
     table.setStyle(TableStyle([
         # Header row
         ("BACKGROUND", (0, 0), (-1, 0), BRAND_PRIMARY_DARK),
@@ -249,18 +260,18 @@ def generate_pdf(cotizacion: Cotizacion, iva_pct: float = 15.0) -> bytes:
         ("TOPPADDING", (0, 0), (-1, 0), 8),
         ("BOTTOMPADDING", (0, 0), (-1, 0), 8),
         # Body rows
-        ("ROWBACKGROUNDS", (0, 1), (-1, -4), [colors.white, BRAND_BG_LIGHT]),
-        ("GRID", (0, 0), (-1, -4), 0.4, BRAND_BORDER),
+        ("ROWBACKGROUNDS", (0, 1), (-1, body_end), [colors.white, BRAND_BG_LIGHT]),
+        ("GRID", (0, 0), (-1, body_end), 0.4, BRAND_BORDER),
         ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-        ("TOPPADDING", (0, 1), (-1, -4), 6),
-        ("BOTTOMPADDING", (0, 1), (-1, -4), 6),
+        ("TOPPADDING", (0, 1), (-1, body_end), 6),
+        ("BOTTOMPADDING", (0, 1), (-1, body_end), 6),
         ("LEFTPADDING", (0, 0), (-1, -1), 8),
-        # Summary rows (subtotal, iva, total)
-        ("LINEABOVE", (0, -3), (-1, -3), 1, BRAND_PRIMARY),
-        ("TOPPADDING", (0, -3), (-1, -3), 8),
-        ("BOTTOMPADDING", (0, -3), (-1, -3), 4),
-        ("TOPPADDING", (0, -2), (-1, -2), 4),
-        ("BOTTOMPADDING", (0, -2), (-1, -2), 4),
+        # Summary rows
+        ("LINEABOVE", (0, body_end), (-1, body_end), 1, BRAND_PRIMARY),
+        ("TOPPADDING", (0, body_end), (-1, body_end), 8),
+        ("BOTTOMPADDING", (0, body_end), (-1, body_end), 4),
+        ("TOPPADDING", (0, body_end + 1), (-1, -2), 4),
+        ("BOTTOMPADDING", (0, body_end + 1), (-1, -2), 4),
         # Total row
         ("BACKGROUND", (0, -1), (-1, -1), BRAND_PRIMARY_LIGHT),
         ("LINEABOVE", (0, -1), (-1, -1), 2, BRAND_PRIMARY),
@@ -349,6 +360,15 @@ def generate_excel(cotizacion: Cotizacion) -> bytes:
         row += 1
 
     # Total row
+    if cotizacion.envio_nombre and cotizacion.envio_precio is not None:
+        ws.cell(row=row, column=4, value=f"Envío ({cotizacion.envio_nombre}):").font = total_font
+        ws.cell(row=row, column=4).alignment = Alignment(horizontal="right")
+        envio_cell = ws.cell(row=row, column=5, value=float(cotizacion.envio_precio))
+        envio_cell.font = total_font
+        envio_cell.number_format = '"$"#,##0.00'
+        envio_cell.alignment = Alignment(horizontal="right")
+        row += 1
+
     ws.cell(row=row, column=4, value="TOTAL:").font = total_font
     ws.cell(row=row, column=4).alignment = Alignment(horizontal="right")
     total_cell = ws.cell(row=row, column=5, value=float(cotizacion.total))

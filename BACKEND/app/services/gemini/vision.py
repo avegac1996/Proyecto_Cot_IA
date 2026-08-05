@@ -5,7 +5,7 @@ import logging
 
 import httpx
 
-from app.core.config import settings
+from app.services.configuracion import obtener_gemini_api_key
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +35,12 @@ async def identificar_componentes_imagen(image_bytes: bytes, mime_type: str) -> 
     Returns:
         Texto con los componentes identificados, una línea por producto.
     """
-    if not settings.GEMINI_API_KEY:
+    from app.core.database import async_session
+
+    async with async_session() as db:
+        api_key = await obtener_gemini_api_key(db)
+
+    if not api_key:
         raise ValueError("GEMINI_API_KEY no configurada")
 
     image_b64 = base64.b64encode(image_bytes).decode("utf-8")
@@ -67,7 +72,7 @@ async def identificar_componentes_imagen(image_bytes: bytes, mime_type: str) -> 
             GEMINI_URL,
             json=payload,
             headers=headers,
-            params={"key": settings.GEMINI_API_KEY},
+            params={"key": api_key},
         )
 
     if response.status_code != 200:

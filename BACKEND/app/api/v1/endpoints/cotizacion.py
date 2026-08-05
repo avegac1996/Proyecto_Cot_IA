@@ -37,6 +37,8 @@ def _to_response(c: Cotizacion) -> CotizacionResponse:
         cliente_nombre=c.cliente_nombre,
         cliente_correo=c.cliente_correo,
         cliente_celular=c.cliente_celular,
+        envio_nombre=c.envio_nombre,
+        envio_precio=c.envio_precio,
     )
 
 
@@ -68,6 +70,8 @@ class CrearDesdeCarritoRequest(BaseModel):
     cliente_correo: str | None = None
     cliente_celular: str | None = None
     cotizacion_id: int | None = None
+    envio_nombre: str | None = None
+    envio_precio: float | None = None
 
 
 @router.post("/cotizacion/desde-carrito", response_model=CotizacionResponse, status_code=status.HTTP_201_CREATED)
@@ -98,6 +102,17 @@ async def crear_desde_carrito(
                 status_code=status.HTTP_409_CONFLICT,
                 detail={"code": "COTIZACION_LOCKED", "message": "La cotización ya está finalizada"},
             )
+        # Actualizar datos del cliente y envío si se enviaron
+        if body.cliente_nombre is not None:
+            cotizacion.cliente_nombre = body.cliente_nombre
+        if body.cliente_correo is not None:
+            cotizacion.cliente_correo = body.cliente_correo
+        if body.cliente_celular is not None:
+            cotizacion.cliente_celular = body.cliente_celular
+        if body.envio_nombre is not None:
+            cotizacion.envio_nombre = body.envio_nombre
+        if body.envio_precio is not None:
+            cotizacion.envio_precio = Decimal(str(body.envio_precio))
     else:
         sesion = Sesion(
             id=uuid_mod.uuid4(),
@@ -113,6 +128,8 @@ async def crear_desde_carrito(
             cliente_nombre=body.cliente_nombre,
             cliente_correo=body.cliente_correo,
             cliente_celular=body.cliente_celular,
+            envio_nombre=body.envio_nombre,
+            envio_precio=Decimal(str(body.envio_precio)) if body.envio_precio is not None else None,
             estado="pendiente",
             total=Decimal("0"),
         )
@@ -389,6 +406,36 @@ async def seleccionar_proveedor(
 
 class AgregarItemRequest(BaseModel):
     texto: str
+
+
+class ActualizarEnvioRequest(BaseModel):
+    envio_nombre: str | None = None
+    envio_precio: float | None = None
+
+
+@router.put("/cotizacion/{cotizacion_id}/envio", response_model=CotizacionResponse)
+async def actualizar_envio_cotizacion(
+    cotizacion_id: int,
+    body: ActualizarEnvioRequest,
+    db: AsyncSession = Depends(get_db),
+    user: Usuario = Depends(get_current_user),
+):
+    """Actualiza solo la opción de envío de una cotización existente."""
+    cotizacion = await _get_cotizacion_by_id(cotizacion_id, user, db)
+
+    if cotizacion.estado == "finalizada":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"code": "COTIZACION_LOCKED", "message": "La cotización ya está finalizada"},
+        )
+
+    from decimal import Decimal
+
+    cotizacion.envio_nombre = body.envio_nombre
+    cotizacion.envio_precio = Decimal(str(body.envio_precio)) if body.envio_precio is not None else None
+    await db.commit()
+    await db.refresh(cotizacion)
+    return _to_response(cotizacion)
 
 
 @router.post("/cotizacion/{cotizacion_id}/agregar", response_model=CotizacionResponse)

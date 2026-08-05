@@ -5,8 +5,14 @@ Soporta dos modos:
 2. Precio en página de producto (dos requests: búsqueda -> producto)
 El modo se determina por la presencia de 'price' en selectores.
 Si no hay 'price' en search, usa 'product_page_price' en la página del producto.
+
+Distingue entre productos simples y variables (WooCommerce):
+- Producto simple: un solo precio, sin variantes seleccionables.
+- Producto variable: múltiples variantes con precio propio (data-product_variations JSON).
 """
 
+import asyncio
+import json
 import logging
 
 import httpx
@@ -67,7 +73,9 @@ class StaticScraper(BaseScraper):
         # Determinar disponibilidad desde clases del card (WooCommerce)
         stock_in_classes = self.selectores.get("stock_in_classes", False)
 
-        page_visit_count = 0
+        # Primera pasada: extraer info básica de cada card y precio si está en la búsqueda
+        cards_info = []  # Info extraída sin visitar página
+        cards_to_visit = []  # Cards que necesitan visita a página de producto
 
         for card in cards:
             # Obtener URL del producto
@@ -90,6 +98,10 @@ class StaticScraper(BaseScraper):
                 if link_el:
                     nombre_producto = link_el.get_text(strip=True)
 
+            # Detectar tipo de producto (simple vs variable) desde clases del card
+            card_classes = card.get("class", []) or [] if hasattr(card, "get") else []
+            is_variable = "product-type-variable" in card_classes
+
             # Disponibilidad
             disponible = True
             if stock_in_classes and hasattr(card, "get"):
@@ -101,42 +113,88 @@ class StaticScraper(BaseScraper):
                     disponible = self._parse_availability(avail_el.get_text(strip=True))
 
             # Precio en búsqueda (si existe el selector)
+            precio_en_busqueda = None
             if price_selector:
                 price_el = card.select_one(price_selector)
                 if price_el:
-                    precio = self._parse_price(price_el.get_text(strip=True))
-                    if precio is not None:
-                        results.append({
-                            "precio": precio,
-                            "disponible": disponible,
-                            "url": url_producto,
-                            "nombre_producto": nombre_producto,
-                        })
-                        continue
+                    precio_en_busqueda = self._parse_price(price_el.get_text(strip=True))
 
-            # Si no hay precio en búsqueda, visitar página de producto (limitado)
-            if url_producto and page_visit_count < MAX_PRODUCT_PAGES:
-                page_visit_count += 1
-                page_price_selector = self.selectores.get("product_page_price", "p.price")
-                page_avail_selector = self.selectores.get("product_page_availability", ".stock")
-                precio, page_disponible, variantes = await self._scrape_product_page(
-                    url_producto, page_price_selector, page_avail_selector
-                )
-                if precio is not None:
-                    results.append({
-                        "precio": precio,
-                        "disponible": page_disponible if page_disponible is not None else disponible,
-                        "url": url_producto,
-                        "nombre_producto": nombre_producto,
-                        "variantes": variantes if variantes else [],
-                    })
+            if precio_en_busqueda is not None:
+                results.append({
+                    "precio": precio_en_busqueda,
+                    "disponible": disponible,
+                    "url": url_producto,
+                    "nombre_producto": nombre_producto,
+                    "variantes": [],
+                })
+            elif url_producto:
+                cards_to_visit.append({
+                    "url": url_producto,
+                    "nombre": nombre_producto,
+                    "disponible": disponible,
+                    "is_variable": is_variable,
+                })
+
+        # Visitar páginas de producto en paralelo (hasta MAX_PRODUCT_PAGES)
+        if cards_to_visit:
+            page_price_selector = self.selectores.get("product_page_price", "p.price")
+            page_avail_selector = self.selectores.get("product_page_availability", ".stock")
+            cards_to_visit = cards_to_visit[:MAX_PRODUCT_PAGES]
+
+            async def _visit_product(info: dict) -> list[dict]:
+                url = info["url"]
+                nombre = info["nombre"]
+                disponible = info["disponible"]
+                is_var = info["is_variable"]
+
+                if is_var:
+                    variantes_data = await self._scrape_variable_product(
+                        url, page_price_selector, page_avail_selector
+                    )
+                    if variantes_data:
+                        return [{
+                            "precio": v["precio"],
+                            "disponible": v["disponible"],
+                            "url": url,
+                            "nombre_producto": f"{nombre} - {v['nombre_variante']}" if v.get("nombre_variante") else nombre,
+                            "variantes": [],
+                        } for v in variantes_data]
+                    # Fallback: precio base
+                    precio, page_disponible, _ = await self._scrape_product_page(
+                        url, page_price_selector, page_avail_selector
+                    )
+                    if precio is not None:
+                        return [{
+                            "precio": precio,
+                            "disponible": page_disponible if page_disponible is not None else disponible,
+                            "url": url,
+                            "nombre_producto": nombre,
+                            "variantes": [],
+                        }]
+                else:
+                    precio, page_disponible, _ = await self._scrape_product_page(
+                        url, page_price_selector, page_avail_selector
+                    )
+                    if precio is not None:
+                        return [{
+                            "precio": precio,
+                            "disponible": page_disponible if page_disponible is not None else disponible,
+                            "url": url,
+                            "nombre_producto": nombre,
+                            "variantes": [],
+                        }]
+                return []
+
+            visit_results = await asyncio.gather(*[_visit_product(info) for info in cards_to_visit])
+            for batch in visit_results:
+                results.extend(batch)
 
         return results
 
     async def _scrape_product_page(
         self, url: str, price_selector: str, avail_selector: str
     ) -> tuple[float | None, bool | None, list[str]]:
-        """Visita la página de un producto y extrae precio, disponibilidad y variantes."""
+        """Visita la página de un producto simple y extrae precio y disponibilidad."""
         try:
             async with httpx.AsyncClient(
                 headers=HEADERS,
@@ -161,41 +219,66 @@ class StaticScraper(BaseScraper):
         if avail_el:
             disponible = self._parse_availability(avail_el.get_text(strip=True))
 
-        # Extraer variantes (colores, tamaños, etc.)
-        variantes = self._extract_variants(soup)
+        return precio, disponible, []
 
-        return precio, disponible, variantes
+    async def _scrape_variable_product(
+        self, url: str, price_selector: str, avail_selector: str
+    ) -> list[dict]:
+        """Extrae cada variación de un producto variable desde el JSON embebido de WooCommerce.
 
-    @staticmethod
-    def _extract_variants(soup: BeautifulSoup) -> list[str]:
-        """Extrae variantes de un producto desde WooCommerce (colores, tamaños, etc.)."""
-        variantes = []
+        Returns:
+            list[dict] con keys: precio (float), disponible (bool), nombre_variante (str|None)
+        """
+        try:
+            async with httpx.AsyncClient(
+                headers=HEADERS,
+                timeout=8.0,
+                follow_redirects=True,
+            ) as client:
+                response = await client.get(url)
+                response.raise_for_status()
+        except httpx.HTTPError as exc:
+            logger.warning("Error HTTP en producto variable %s: %s", url, exc)
+            return []
 
-        # WooCommerce variation form: select option values
-        for select_el in soup.select("select option"):
-            value = select_el.get("value", "")
-            text = select_el.get_text(strip=True)
-            if value and value != "" and text and "Seleccionar" not in text and "Elige" not in text:
-                if text not in variantes:
-                    variantes.append(text)
+        soup = BeautifulSoup(response.text, "html.parser")
 
-        # WooCommerce attribute table: tr > th + td
-        for row in soup.select("table.woocommerce-product-attributes tr"):
-            th = row.find("th")
-            td = row.find("td")
-            if th and td:
-                attr_label = th.get_text(strip=True).lower()
-                attr_value = td.get_text(strip=True)
-                if attr_value and attr_value not in variantes:
-                    variantes.append(attr_value)
+        # Buscar form.variations_form con data-product_variations JSON
+        form = soup.select_one("form.variations_form")
+        if not form:
+            return []
 
-        # Información adicional section (AV Electronics usa esta estructura)
-        for row in soup.select(".woocommerce-product-attributes-item"):
-            label_el = row.select_one(".woocommerce-product-attributes-item__label")
-            value_el = row.select_one(".woocommerce-product-attributes-item__value")
-            if value_el:
-                val = value_el.get_text(strip=True)
-                if val and val not in variantes:
-                    variantes.append(val)
+        data_var = form.get("data-product_variations")
+        if not data_var:
+            return []
 
-        return variantes[:10]  # Limitar a 10 variantes
+        try:
+            variaciones = json.loads(data_var)
+            if not isinstance(variaciones, list):
+                # data-product_variations puede ser "false" (string)
+                return []
+        except (json.JSONDecodeError, TypeError):
+            logger.warning("No se pudo parsear data-product_variations en %s", url)
+            return []
+
+        resultados = []
+        for v in variaciones:
+            precio = v.get("display_price") or v.get("display_regular_price")
+            if precio is None:
+                continue
+            disponible = v.get("is_in_stock", True)
+            # Extraer nombre de la variante desde attributes
+            attrs = v.get("attributes", {})
+            nombre_parts = []
+            for key, val in attrs.items():
+                if val:
+                    nombre_parts.append(val)
+            nombre_variante = " / ".join(nombre_parts) if nombre_parts else None
+
+            resultados.append({
+                "precio": float(precio),
+                "disponible": disponible,
+                "nombre_variante": nombre_variante,
+            })
+
+        return resultados

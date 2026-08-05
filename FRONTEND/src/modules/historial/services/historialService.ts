@@ -1,5 +1,5 @@
 import api from '@/shared/lib/api'
-import type { CotizacionListItem, Cotizacion } from '@/shared/types'
+import type { CotizacionListItem, Cotizacion, OpcionEnvio } from '@/shared/types'
 
 interface HistorialResponse {
   total: number
@@ -51,6 +51,17 @@ export async function finalizarCotizacion(cotizacionId: number): Promise<Cotizac
 
 export async function agregarItem(cotizacionId: number, texto: string): Promise<Cotizacion> {
   const { data } = await api.post<Cotizacion>(`/cotizacion/${cotizacionId}/agregar`, { texto })
+  return data
+}
+
+export async function actualizarEnvio(
+  cotizacionId: number,
+  envio: OpcionEnvio | null
+): Promise<Cotizacion> {
+  const { data } = await api.put<Cotizacion>(`/cotizacion/${cotizacionId}/envio`, {
+    envio_nombre: envio?.nombre ?? null,
+    envio_precio: envio?.precio ?? null,
+  })
   return data
 }
 

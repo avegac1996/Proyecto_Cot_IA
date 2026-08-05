@@ -12,9 +12,9 @@ from app.services.scraping.scrapers import get_scraper
 
 logger = logging.getLogger(__name__)
 
-MAX_RESULTADOS_POR_TIENDA = 10
-SCRAPE_TIMEOUT_SECONDS = 15
-MAX_PRODUCT_PAGE_VISITS = 3
+MAX_RESULTADOS_POR_TIENDA = 50
+SCRAPE_TIMEOUT_SECONDS = 45
+MAX_PRODUCT_PAGE_VISITS = 10
 
 # Cache en memoria por término (TTL 2 min)
 _cache_termino: dict[str, tuple[datetime, list[dict]]] = {}

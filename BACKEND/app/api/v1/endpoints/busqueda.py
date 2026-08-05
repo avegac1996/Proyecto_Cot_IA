@@ -77,23 +77,19 @@ async def buscar_componentes(
     # Limpiar cache en memoria para que cada búsqueda traiga resultados frescos
     limpiar_cache_termino()
 
-    # Deduplicación global: un producto solo aparece una vez en toda la lista
-    # Procesamos secuencialmente para que el primer término que encuentre un producto se quede con él
-    productos_vistos = set()  # nombre_producto en lowercase
+    # Sin deduplicación global: cada término busca independientemente.
+    # El filtrado por relevancia se encarga de que cada producto aparezca
+    # bajo el término más adecuado (ej: "LED Verde" bajo "led verde", no "led rojo").
     from app.services.scraping.sugerencias import sugerir_termino
 
     resultados = []
     for comp in componentes:
-        resultado = await buscar_por_termino_priorizado(db, comp["termino"], comp["cantidad"])
-        opciones_filtradas = []
-        for op in resultado.get("opciones", []):
-            nombre_key = op["nombre_producto"].strip().lower()
-            if nombre_key in productos_vistos:
-                continue
-            productos_vistos.add(nombre_key)
-            opciones_filtradas.append(op)
-        resultado["opciones"] = opciones_filtradas
-        if not opciones_filtradas and not resultado.get("sugerencia"):
+        resultado = await buscar_por_termino_priorizado(
+            db, comp["termino"], comp["cantidad"],
+            termino_base=comp.get("termino_base"),
+            descriptores=comp.get("descriptores", []),
+        )
+        if not resultado.get("opciones") and not resultado.get("sugerencia"):
             resultado["sugerencia"] = sugerir_termino(comp["termino"])
         resultados.append(resultado)
 

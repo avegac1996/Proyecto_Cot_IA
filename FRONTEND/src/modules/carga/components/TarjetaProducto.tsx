@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Store, Check, X, BadgeCheck, Lightbulb, AlertTriangle, ChevronDown, ChevronUp, Loader2, Palette } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Store, Check, X, BadgeCheck, Lightbulb, AlertTriangle, ChevronDown, ChevronUp, ChevronRight, Loader2, Palette } from 'lucide-react'
 import type { ResultadoComponente, OpcionProducto } from '@/shared/types'
 import { buscarAlternativas } from '../services/busquedaService'
 
@@ -20,11 +20,28 @@ export default function TarjetaProducto({ resultado, onToggleSeleccion, seleccio
   const [agotadoExpandido, setAgotadoExpandido] = useState<string | null>(null)
   const [alternativasRemotas, setAlternativasRemotas] = useState<Record<string, OpcionProducto[]>>({})
   const [cargandoAlternativas, setCargandoAlternativas] = useState<string | null>(null)
+  const [varianteSeleccionada, setVarianteSeleccionada] = useState<string | null>(null)
+  const [colapsado, setColapsado] = useState(false)
+
+  // Auto-colapsar cuando hay productos seleccionados
+  useEffect(() => {
+    if (seleccionadas.length > 0) {
+      setColapsado(true)
+    }
+  }, [seleccionadas.length])
 
   const isSelected = (op: OpcionProducto) =>
     seleccionadas.some((s) => s.tienda === op.tienda && s.nombre_producto === op.nombre_producto)
 
   const opcionesDisponibles = opciones.filter((o) => o.disponible)
+
+  const handleClickVariante = (e: React.MouseEvent, op: OpcionProducto, variante: string) => {
+    e.stopPropagation()
+    if (!op.disponible) return
+    setVarianteSeleccionada(variante)
+    const opConVariante = { ...op, nombre_producto: `${op.nombre_producto} - ${variante}` }
+    onToggleSeleccion(termino, cantidad, opConVariante)
+  }
 
   const handleClickOpcion = (op: OpcionProducto) => {
     if (!op.disponible) {
@@ -56,10 +73,16 @@ export default function TarjetaProducto({ resultado, onToggleSeleccion, seleccio
       style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}
     >
       <div
-        className="px-4 py-3 flex items-center justify-between"
+        className="px-4 py-3 flex items-center justify-between cursor-pointer select-none transition-colors hover:opacity-80"
         style={{ backgroundColor: 'var(--color-bg)' }}
+        onClick={() => setColapsado((v) => !v)}
       >
         <div className="flex items-center gap-2">
+          {opciones.length > 0 && (
+            colapsado
+              ? <ChevronRight className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--color-text-muted)' }} />
+              : <ChevronDown className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--color-text-muted)' }} />
+          )}
           <span className="font-bold text-sm" style={{ color: 'var(--color-text)' }}>
             {termino}
           </span>
@@ -78,6 +101,15 @@ export default function TarjetaProducto({ resultado, onToggleSeleccion, seleccio
             >
               <BadgeCheck className="w-3 h-3" />
               AV
+            </span>
+          )}
+          {colapsado && seleccionadas.length > 0 && (
+            <span
+              className="flex items-center gap-1 px-1.5 py-0.5 rounded text-xs"
+              style={{ backgroundColor: '#D1FAE5', color: '#065F46' }}
+            >
+              <Check className="w-3 h-3" />
+              {seleccionadas.length} {seleccionadas.length === 1 ? 'seleccionado' : 'seleccionados'}
             </span>
           )}
         </div>
@@ -114,7 +146,7 @@ export default function TarjetaProducto({ resultado, onToggleSeleccion, seleccio
             </div>
           )}
         </div>
-      ) : (
+      ) : colapsado ? null : (
         <div className="divide-y" style={{ borderColor: 'var(--color-border)' }}>
           {opciones.map((op) => {
             const selected = isSelected(op)
@@ -195,21 +227,34 @@ export default function TarjetaProducto({ resultado, onToggleSeleccion, seleccio
                         )}
                       </div>
                       {op.variantes && op.variantes.length > 0 && (
-                        <div className="flex items-center gap-1 flex-wrap mt-1">
+                        <div className="flex items-center gap-1 flex-wrap mt-1" onClick={(e) => e.stopPropagation()}>
                           <Palette className="w-3 h-3 flex-shrink-0" style={{ color: selected ? 'rgba(255,255,255,0.6)' : 'var(--color-text-muted)' }} />
-                          {op.variantes.map((v, vi) => (
-                            <span
-                              key={vi}
-                              className="px-1.5 py-0.5 rounded text-xs"
-                              style={{
-                                backgroundColor: selected ? 'rgba(255,255,255,0.15)' : 'var(--color-bg)',
-                                color: selected ? 'rgba(255,255,255,0.9)' : 'var(--color-text-muted)',
-                                border: `1px solid ${selected ? 'rgba(255,255,255,0.2)' : 'var(--color-border)'}`,
-                              }}
-                            >
-                              {v}
-                            </span>
-                          ))}
+                          {op.variantes.map((v, vi) => {
+                            const vSelected = varianteSeleccionada === v
+                            return (
+                              <button
+                                key={vi}
+                                onClick={(e) => handleClickVariante(e, op, v)}
+                                disabled={!op.disponible}
+                                className="px-1.5 py-0.5 rounded text-xs transition-colors disabled:opacity-50"
+                                style={{
+                                  backgroundColor: vSelected
+                                    ? 'var(--color-primary)'
+                                    : selected
+                                      ? 'rgba(255,255,255,0.15)'
+                                      : 'var(--color-bg)',
+                                  color: vSelected
+                                    ? '#fff'
+                                    : selected
+                                      ? 'rgba(255,255,255,0.9)'
+                                      : 'var(--color-text-muted)',
+                                  border: `1px solid ${vSelected ? 'var(--color-primary)' : selected ? 'rgba(255,255,255,0.2)' : 'var(--color-border)'}`,
+                                }}
+                              >
+                                {v}
+                              </button>
+                            )
+                          })}
                         </div>
                       )}
                     </div>

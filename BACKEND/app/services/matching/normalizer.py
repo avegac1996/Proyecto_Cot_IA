@@ -3,9 +3,9 @@ import re
 # Diccionario de términos coloquiales/sinónimos → tipo estandarizado.
 # Se enriquece con la tabla `equivalencias` en BD; este mapa es el fallback base.
 TIPOS_PALABRAS: dict[str, list[str]] = {
-    "resistencia": ["resistencia", "resistor", "resistores"],
+    "resistencia": ["resistencia", "resistencias", "resistor", "resistores"],
     "capacitor": ["capacitor", "condensador", "capacitores"],
-    "led": ["led", "leds", "foquito", "foquitos", "bombillo", "bombilla", "foco"],
+    "led": ["led", "leds", "foquito", "foquitos", "bombillo", "bombilla", "foco", "focos"],
     "transistor": ["transistor", "transistores"],
     "diodo": ["diodo", "diodos"],
     "integrado": ["integrado", "circuito integrado", "chip"],
@@ -15,7 +15,7 @@ TIPOS_PALABRAS: dict[str, list[str]] = {
     "fuente": ["fuente", "eliminador", "cargador", "transformador", "adaptador"],
     "conector": ["conector", "conectores", "jack", "plug", "borne"],
     "cable": ["cable", "cables", "jumper", "jumpers", "alambre"],
-    "pulsador": ["pulsador", "boton", "botón", "switch", "interruptor", "push"],
+    "pulsador": ["pulsador", "pulsadores", "boton", "botones", "botón", "switch", "interruptor", "push"],
     "buzzer": ["buzzer", "zumbador", "bocina", "speaker", "altavoz"],
     "motor": ["motor dc", "motor", "servo", "servomotor", "paso a paso", "stepper"],
     "rele": ["rele", "relé", "relay"],
@@ -25,14 +25,28 @@ TIPOS_PALABRAS: dict[str, list[str]] = {
     "bluetooth": ["bluetooth", "hc-05", "hc05", "hc-06", "hc06", "ble"],
     "driver": ["driver", "l298n", "uln2003", "puente h"],
     "raspberry": ["raspberry", "raspberry pi", "rpi"],
+    "bateria": ["bateria", "baterias", "pila", "pilas"],
+    "porta_pila": ["porta pila", "porta pilas", "broche", "porta bateria", "clip bateria"],
 }
 
-COLORES = ["rojo", "verde", "azul", "amarillo", "blanco", "rgb", "naranja", "violeta"]
-TAMANOS_LED = ["3mm", "5mm", "8mm", "10mm", "smd"]
+COLORES = ["rojo", "rojos", "verde", "verdes", "azul", "azules", "amarillo", "amarillos", "amarrillo", "amarrillos", "blanco", "blancos", "rgb", "naranja", "naranjas", "violeta", "morado", "morados", "negro", "negros"]
+TAMANOS_LED = ["3mm", "5mm", "8mm", "10mm", "smd", "0805", "1206"]
 TIPOS_TRANSISTOR = ["npn", "pnp", "mosfet", "jfet"]
 TIPOS_DIODOS = ["rectificador", "zener", "schottky", "led", "puente"]
 TIPOS_MOTOR = ["dc", "servo", "paso a paso", "stepper"]
 TIPOS_SENSOR = ["temperatura", "humedad", "distancia", "luz", "movimiento", "proximidad", "ultrasonico", "pir", "dht11", "dht22", "lm35", "ds18b20"]
+
+# Descriptores adicionales que enriquecen la busqueda
+DESCRIPCIONES_EXTRA = {
+    "macho-hembra", "macho-macho", "hembra-hembra", "macho hembra", "macho macho",
+    "pequeno", "pequena", "grande", "mediano",
+    "5v", "12v", "3v", "3.3v", "24v", "9v",
+    "330", "220", "470", "1k", "10k", "100k", "1m",
+    "ohm", "ohms", "kohm", "kohms", "mohm",
+    "activo", "pasivo",
+    "2 pines", "4 pines", "2 pin", "4 pin",
+    "cristal", "oscilador",
+}
 
 # Defaults automáticos basados en las preguntas frecuentes de la tienda.
 # Se aplican ANTES de marcar como ambigüedad. Si el campo tiene default,

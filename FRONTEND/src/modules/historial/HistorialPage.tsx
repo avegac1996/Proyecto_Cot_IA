@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { AlertCircle, Eye, History, Loader2, Trash2, Download, X, FileText, Lock, Plus, Search, ChevronLeft, ChevronRight, Calendar } from 'lucide-react'
-import type { CotizacionListItem, Cotizacion } from '@/shared/types'
+import { AlertCircle, Eye, History, Loader2, Trash2, Download, X, FileText, Lock, Plus, Search, ChevronLeft, ChevronRight, Calendar, Truck } from 'lucide-react'
+import type { CotizacionListItem, Cotizacion, OpcionEnvio } from '@/shared/types'
 import {
   extractHistorialError,
   getHistorial,
@@ -9,7 +9,9 @@ import {
   eliminarCotizacion,
   descargarPDF,
   finalizarCotizacion,
+  actualizarEnvio,
 } from './services/historialService'
+import EnvioModal from '@/modules/carga/components/EnvioModal'
 
 const ESTADO_STYLE: Record<string, { bg: string; color: string }> = {
   completada: { bg: 'rgba(22,163,74,0.12)', color: '#16a34a' },
@@ -33,6 +35,8 @@ export default function HistorialPage() {
   const [eliminandoId, setEliminandoId] = useState<number | null>(null)
   const [highlightId, setHighlightId] = useState<number | null>(null)
   const [finalizando, setFinalizando] = useState(false)
+  const [mostrarModalEnvio, setMostrarModalEnvio] = useState(false)
+  const [guardandoEnvio, setGuardandoEnvio] = useState(false)
 
   // Paginación y filtros
   const [page, setPage] = useState(1)
@@ -118,6 +122,20 @@ export default function HistorialPage() {
     const cid = cotizacionDetalle.cotizacion_id
     setCotizacionDetalle(null)
     navigate('/carga', { state: { cotizacionId: cid } })
+  }
+
+  const handleCambiarEnvio = async (envio: OpcionEnvio | null) => {
+    if (!cotizacionDetalle) return
+    setGuardandoEnvio(true)
+    try {
+      const data = await actualizarEnvio(cotizacionDetalle.cotizacion_id, envio)
+      setCotizacionDetalle(data)
+      setMostrarModalEnvio(false)
+    } catch {
+      setError('Error al actualizar el envío')
+    } finally {
+      setGuardandoEnvio(false)
+    }
   }
 
   const handleEliminar = async (cotizacionId: number) => {
@@ -568,19 +586,49 @@ export default function HistorialPage() {
                   ))}
                 </tbody>
                 <tfoot>
+                  <tr className="border-t" style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-bg)' }}>
+                    <td colSpan={4} className="px-3 py-2 text-right font-medium text-sm" style={{ color: 'var(--color-text)' }}>
+                      Subtotal
+                    </td>
+                    <td className="px-3 py-2 text-right font-medium text-sm" style={{ color: 'var(--color-text)' }}>
+                      {money(cotizacionDetalle.total)}
+                    </td>
+                  </tr>
+                  <tr style={{ backgroundColor: 'var(--color-bg)' }}>
+                    <td colSpan={4} className="px-3 py-2 text-right text-xs" style={{ color: 'var(--color-text-muted)' }}>
+                      {cotizacionDetalle.envio_nombre
+                        ? `Envío (${cotizacionDetalle.envio_nombre})`
+                        : 'Envío (no seleccionado)'}
+                    </td>
+                    <td className="px-3 py-2 text-right text-xs font-medium" style={{ color: 'var(--color-text)' }}>
+                      {cotizacionDetalle.envio_precio != null ? money(cotizacionDetalle.envio_precio) : '—'}
+                    </td>
+                  </tr>
                   <tr className="border-t-2" style={{ borderColor: 'var(--color-border)' }}>
                     <td colSpan={4} className="px-3 py-3 text-right font-bold" style={{ color: 'var(--color-text)' }}>
                       Total
                     </td>
                     <td className="px-3 py-3 text-right font-bold text-base" style={{ color: 'var(--color-primary)' }}>
-                      {money(cotizacionDetalle.total)}
+                      {money(Number(cotizacionDetalle.total) + Number(cotizacionDetalle.envio_precio ?? 0))}
                     </td>
                   </tr>
                 </tfoot>
               </table>
 
               {cotizacionDetalle.estado !== 'finalizada' && (
-                <div className="mt-4 pt-4 border-t" style={{ borderColor: 'var(--color-border)' }}>
+                <div className="mt-4 pt-4 border-t space-y-2" style={{ borderColor: 'var(--color-border)' }}>
+                  <button
+                    onClick={() => setMostrarModalEnvio(true)}
+                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg font-medium text-sm transition-colors"
+                    style={{
+                      border: '1px solid var(--color-border)',
+                      color: 'var(--color-text)',
+                      backgroundColor: 'transparent',
+                    }}
+                  >
+                    <Truck className="w-4 h-4" />
+                    {cotizacionDetalle.envio_nombre ? 'Cambiar envío' : 'Seleccionar envío'}
+                  </button>
                   <button
                     onClick={handleAgregarMas}
                     className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg font-medium text-white text-sm transition-colors"
@@ -597,6 +645,15 @@ export default function HistorialPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Modal para cambiar envío */}
+      {mostrarModalEnvio && cotizacionDetalle && (
+        <EnvioModal
+          onSubmit={(envio) => handleCambiarEnvio(envio)}
+          onCancel={() => setMostrarModalEnvio(false)}
+          isLoading={guardandoEnvio}
+        />
       )}
 
       {/* Loading overlay para detalle */}

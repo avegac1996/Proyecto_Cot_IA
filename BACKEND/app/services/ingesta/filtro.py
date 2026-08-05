@@ -14,6 +14,7 @@ import unicodedata
 
 from app.services.matching.normalizer import (
     COLORES,
+    DESCRIPCIONES_EXTRA,
     TAMANOS_LED,
     TIPOS_MOTOR,
     TIPOS_SENSOR,
@@ -52,10 +53,19 @@ def _construir_diccionario_busqueda() -> dict[str, str]:
     # Agregar tamaños LED
     for tam in TAMANOS_LED:
         dic[tam] = "tamano"
+    # Agregar descripciones extra como tipo 'descriptor'
+    for desc in DESCRIPCIONES_EXTRA:
+        dic[desc] = "descriptor"
     return dic
 
 
 _DICCIONARIO = _construir_diccionario_busqueda()
+
+# Conjunto de todas las palabras que son componentes (no descriptores)
+_PALABRAS_COMPONENTE = {
+    p for p, tipo in _DICCIONARIO.items()
+    if tipo not in ("color", "tamano", "descriptor")
+}
 
 
 def _extraer_cantidad(texto: str, posicion: int) -> int:
@@ -67,11 +77,141 @@ def _extraer_cantidad(texto: str, posicion: int) -> int:
     return 1
 
 
+def _singularizar_color(palabra: str) -> str:
+    """Convierte plurales de colores a singular: rojos -> rojo, verdes -> verde."""
+    mapa = {
+        "rojos": "rojo", "verdes": "verde", "azules": "azul",
+        "amarillos": "amarillo", "amarrillos": "amarrillo",
+        "blancos": "blanco", "negros": "negro", "naranjas": "naranja",
+        "morados": "morado", "violetas": "violeta",
+    }
+    return mapa.get(palabra, palabra)
+
+
+def _singularizar_componente(palabra: str) -> str:
+    """Convierte plurales de componentes a singular: leds -> led, jumpers -> jumper."""
+    mapa = {
+        "leds": "led", "jumpers": "jumper", "resistencias": "resistencia",
+        "resistores": "resistor", "capacitores": "capacitor",
+        "transistores": "transistor", "diodos": "diodo",
+        "cables": "cable", "pulsadores": "pulsador",
+        "botones": "boton", "sensores": "sensor",
+        "conectores": "conector", "baterias": "bateria",
+        "pilas": "pila", "focos": "foco",
+    }
+    return mapa.get(palabra, palabra)
+
+
+def _buscar_descriptores(
+    palabras: list[str],
+    consumido: list[bool],
+    inicio: int,
+    fin: int,
+    tipo_componente: str,
+) -> list[str]:
+    """Busca palabras descriptoras y sinónimos del mismo tipo alrededor del componente [inicio, fin).
+
+    También consume palabras que son sinónimos del mismo tipo de componente
+    (ej: 'boton' cuando se encontro 'pulsador') para evitar duplicados.
+    """
+    descriptores: list[str] = []
+
+    # Buscar hacia adelante (después del componente)
+    j = fin
+    while j < len(palabras) and not consumido[j]:
+        palabra = palabras[j]
+        # Si es un número, verificar si es cantidad de otro componente o especificación
+        if palabra.isdigit():
+            # Si la siguiente palabra es un componente conocido, parar (nueva línea)
+            if j + 1 < len(palabras) and palabras[j + 1] in _PALABRAS_COMPONENTE:
+                break
+            # Si no, es una especificación (ej: 330 ohms, 2 pines)
+            # Probar n-grams que incluyen el número (ej: "2 pines", "4 pin")
+            for v in (3, 2):
+                if j + v <= len(palabras) and not any(consumido[j : j + v]):
+                    ngram = " ".join(palabras[j : j + v])
+                    if ngram in _DICCIONARIO and _DICCIONARIO[ngram] in ("color", "tamano", "descriptor"):
+                        descriptores.append(ngram)
+                        for k in range(j, j + v):
+                            consumido[k] = True
+                        j += v
+                        break
+            else:
+                # Si no se encontró n-gram con número, buscar sin número
+                num = palabra
+                j += 1
+                if j < len(palabras) and not consumido[j]:
+                    for v in (2, 1):
+                        if j + v <= len(palabras) and not any(consumido[j : j + v]):
+                            ngram = " ".join(palabras[j : j + v])
+                            if ngram in _DICCIONARIO and _DICCIONARIO[ngram] in ("color", "tamano", "descriptor"):
+                                descriptores.append(f"{num} {ngram}")
+                                for k in range(j, j + v):
+                                    consumido[k] = True
+                                j += v
+                                break
+            continue
+        # Probar n-grams de 2 y 1 hacia adelante
+        encontrado = False
+        for v in (2, 1):
+            if j + v <= len(palabras) and not any(consumido[j : j + v]):
+                ngram = " ".join(palabras[j : j + v])
+                if ngram in _DICCIONARIO:
+                    tipo_ngram = _DICCIONARIO[ngram]
+                    if tipo_ngram == tipo_componente:
+                        # Sinónimo del mismo componente, consumir sin agregar
+                        for k in range(j, j + v):
+                            consumido[k] = True
+                        j += v
+                        encontrado = True
+                        break
+                    elif tipo_ngram in ("color", "tamano", "descriptor"):
+                        if tipo_ngram == "color":
+                            descriptores.append(_singularizar_color(ngram))
+                        else:
+                            descriptores.append(ngram)
+                        for k in range(j, j + v):
+                            consumido[k] = True
+                        j += v
+                        encontrado = True
+                        break
+        if not encontrado:
+            # Si la palabra no es descriptor ni sinónimo, parar
+            break
+
+    # Buscar hacia atras (antes del componente, después del número)
+    j = inicio - 1
+    while j >= 0 and not consumido[j]:
+        palabra = palabras[j]
+        # Si es un número, no consumir (lo maneja _extraer_cantidad)
+        if palabra.isdigit():
+            break
+        if palabra in _DICCIONARIO:
+            tipo_palabra = _DICCIONARIO[palabra]
+            if tipo_palabra == tipo_componente:
+                # Sinónimo del mismo componente, consumir sin agregar
+                consumido[j] = True
+                j -= 1
+                continue
+            elif tipo_palabra in ("color", "tamano", "descriptor"):
+                if tipo_palabra == "color":
+                    descriptores.insert(0, _singularizar_color(palabra))
+                else:
+                    descriptores.insert(0, palabra)
+                consumido[j] = True
+                j -= 1
+                continue
+        break
+
+    return descriptores
+
+
 def extraer_componentes(mensaje: str) -> list[dict]:
     """Extrae componentes electrónicos de un mensaje conversacional.
 
     Usa n-grams (3→2→1) contra el diccionario TIPOS_PALABRAS.
-    No filtra stopwords a ciegas — busca matches contra tipos conocidos.
+    Captura descriptores adyacentes (colores, tamaños, especificaciones)
+    para enriquecer el término de búsqueda.
 
     Returns:
         list[dict] con keys: termino (str), cantidad (int), tipo (str)
@@ -95,22 +235,38 @@ def extraer_componentes(mensaje: str) -> list[dict]:
             ngram = " ".join(palabras[i : i + ventana])
             if ngram in _DICCIONARIO:
                 tipo = _DICCIONARIO[ngram]
-                if tipo in ("color", "tamano"):
-                    # No es un componente por sí solo, pero marcamos como consumido
-                    for j in range(i, i + ventana):
-                        consumido[j] = True
+                if tipo in ("color", "tamano", "descriptor"):
+                    # No es un componente por sí solo.
+                    # NO marcar como consumido: se capturará como descriptor
+                    # del componente más cercano en _buscar_descriptores.
                     continue
 
                 # Calcular posición en texto original para extraer cantidad
                 pos_aprox = len(" ".join(palabras[:i])) + (1 if i > 0 else 0)
                 cantidad = _extraer_cantidad(texto, pos_aprox)
 
-                resultados.append({
-                    "termino": ngram,
-                    "cantidad": cantidad,
-                    "tipo": tipo,
-                })
+                # Marcar palabras del componente como consumidas
                 for j in range(i, i + ventana):
                     consumido[j] = True
 
+                # Buscar descriptores adyacentes (colores, tamaños, especificaciones)
+                descriptores = _buscar_descriptores(palabras, consumido, i, i + ventana, tipo)
+
+                # Construir término de búsqueda enriquecido
+                termino_base = _singularizar_componente(ngram)
+                termino_busqueda = termino_base
+                if descriptores:
+                    termino_busqueda = f"{termino_base} {' '.join(descriptores)}"
+
+                resultados.append({
+                    "termino": termino_busqueda,
+                    "termino_base": termino_base,
+                    "descriptores": descriptores,
+                    "cantidad": cantidad,
+                    "tipo": tipo,
+                    "_pos": i,
+                })
+
+    # Ordenar por posición original en el texto (mismo orden que el cliente)
+    resultados.sort(key=lambda r: r.pop("_pos", 0))
     return resultados

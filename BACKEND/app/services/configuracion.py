@@ -100,3 +100,90 @@ async def actualizar_iva(db: AsyncSession, valor: float) -> float:
         db.add(config)
     await db.commit()
     return valor
+
+
+# --- Opciones de envío ---
+
+OPCIONES_ENVIO_DEFAULT = [
+    {"id": "recogida", "nombre": "Recogida local", "precio": 0.0},
+    {"id": "servientrega_dmq", "nombre": "Servientrega - Quito DMQ y Valles", "precio": 3.0},
+    {"id": "servientrega_rurales", "nombre": "Servientrega - Quito Parroquias Rurales", "precio": 5.4},
+    {"id": "servientrega_provincias", "nombre": "Servientrega - Provincias", "precio": 6.0},
+    {"id": "servientrega_lejanas", "nombre": "Servientrega - Samborondón, Oriente y Ciudades Lejanas", "precio": 7.1},
+]
+
+
+async def obtener_opciones_envio(db: AsyncSession) -> list[dict]:
+    """Lee las opciones de envío desde BD. Fallback a defaults si no existe."""
+    result = await db.execute(
+        select(ConfiguracionNegocio).where(
+            ConfiguracionNegocio.clave == "opciones_envio"
+        )
+    )
+    config = result.scalar_one_or_none()
+    if config:
+        try:
+            import json
+            return json.loads(config.valor)
+        except (json.JSONDecodeError, ValueError):
+            pass
+    return OPCIONES_ENVIO_DEFAULT
+
+
+async def actualizar_opciones_envio(db: AsyncSession, opciones: list[dict]) -> list[dict]:
+    """Actualiza o crea las opciones de envío en BD."""
+    import json
+    result = await db.execute(
+        select(ConfiguracionNegocio).where(
+            ConfiguracionNegocio.clave == "opciones_envio"
+        )
+    )
+    config = result.scalar_one_or_none()
+    valor = json.dumps(opciones)
+    if config:
+        config.valor = valor
+    else:
+        config = ConfiguracionNegocio(
+            clave="opciones_envio",
+            valor=valor,
+            descripcion="Opciones de envío con precios configurables",
+        )
+        db.add(config)
+    await db.commit()
+    return opciones
+
+
+# --- API Key de Gemini ---
+
+async def obtener_gemini_api_key(db: AsyncSession) -> str:
+    """Lee la API key de Gemini desde BD. Fallback a settings si no existe."""
+    result = await db.execute(
+        select(ConfiguracionNegocio).where(
+            ConfiguracionNegocio.clave == "gemini_api_key"
+        )
+    )
+    config = result.scalar_one_or_none()
+    if config and config.valor:
+        return config.valor
+    return settings.GEMINI_API_KEY
+
+
+async def actualizar_gemini_api_key(db: AsyncSession, valor: str) -> str:
+    """Actualiza o crea la API key de Gemini en BD."""
+    result = await db.execute(
+        select(ConfiguracionNegocio).where(
+            ConfiguracionNegocio.clave == "gemini_api_key"
+        )
+    )
+    config = result.scalar_one_or_none()
+    if config:
+        config.valor = valor
+    else:
+        config = ConfiguracionNegocio(
+            clave="gemini_api_key",
+            valor=valor,
+            descripcion="API key para Google Gemini (Vision y Chat)",
+        )
+        db.add(config)
+    await db.commit()
+    return valor

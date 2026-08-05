@@ -14,6 +14,7 @@ import {
   isAmbiguitiesPending,
   seleccionarProveedor,
 } from './services/cotizacionService'
+import { getConfiguracion } from '@/modules/carga/services/busquedaService'
 
 export default function CotizacionPage() {
   const navigate = useNavigate()
@@ -21,6 +22,11 @@ export default function CotizacionPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [selectingId, setSelectingId] = useState<number | null>(null)
+  const [ivaPct, setIvaPct] = useState<number>(0)
+
+  useEffect(() => {
+    getConfiguracion().then((config) => setIvaPct(config.iva)).catch(() => {})
+  }, [])
 
   useEffect(() => {
     if (!sessionId || cotizacion) return
@@ -210,6 +216,7 @@ export default function CotizacionPage() {
         onAgregarItem={handleAgregar}
         onFinalizar={handleFinalizar}
         selectingId={selectingId}
+        ivaPct={ivaPct}
       />
     </div>
   )
