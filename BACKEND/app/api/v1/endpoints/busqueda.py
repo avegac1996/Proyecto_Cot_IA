@@ -88,6 +88,7 @@ async def buscar_componentes(
             db, comp["termino"], comp["cantidad"],
             termino_base=comp.get("termino_base"),
             descriptores=comp.get("descriptores", []),
+            tipo=comp.get("tipo"),
         )
         if not resultado.get("opciones") and not resultado.get("sugerencia"):
             resultado["sugerencia"] = sugerir_termino(comp["termino"])

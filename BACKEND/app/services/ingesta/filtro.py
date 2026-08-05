@@ -28,8 +28,12 @@ def _normalizar(texto: str) -> str:
     # Sin tildes
     texto = unicodedata.normalize("NFD", texto)
     texto = "".join(c for c in texto if unicodedata.category(c) != "Mn")
+    # Proteger decimales antes de quitar puntuación (4.7kΩ → no perder el punto)
+    texto = re.sub(r"(\d)[.,](\d)", lambda m: m.group(1) + "\x00" + m.group(2), texto)
     # Eliminar puntuación (¿?¡!.,;:()[]{}'"-...)
     texto = re.sub(r"[¿?¡!.,;:()\[\]{}'\"\\\/\-]", " ", texto)
+    # Restaurar decimales
+    texto = texto.replace("\x00", ".")
     # Múltiples espacios → uno solo
     texto = re.sub(r"\s+", " ", texto)
     return texto.strip()
