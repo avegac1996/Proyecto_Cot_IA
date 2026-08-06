@@ -76,50 +76,112 @@ def _extraer_valores(texto: str) -> set[tuple[str, float]]:
 
 
 def _palabra_en_texto(palabra: str, texto: str) -> bool:
-    """Verifica si palabra aparece como palabra completa en texto (no substring)."""
-    patron = r'(?<![a-z])' + re.escape(palabra) + r'(?![a-z])'
+    """Verifica si palabra aparece como palabra completa en texto (no substring).
+
+    Usa word boundaries que incluyen dígitos: '1' no debe matchear '12'.
+    """
+    patron = r'(?<![a-z0-9])' + re.escape(palabra) + r'(?![a-z0-9])'
     return bool(re.search(patron, texto))
+
+
+def _palabra_o_plural_en_texto(palabra: str, texto: str) -> bool:
+    """Verifica si palabra o su plural/singular español aparece en texto.
+
+    Maneja plurales reales: canal→canales, pin→pines, terminal→terminales.
+    También busca singular si la palabra ya es plural: pines→pin, canales→canal.
+    """
+    if _palabra_en_texto(palabra, texto):
+        return True
+    # Buscar singular si la palabra es plural (pines→pin, canales→canal)
+    if len(palabra) > 4 and palabra.endswith("es"):
+        singular = palabra[:-2]  # pines→pin, canales→canal
+        if _palabra_en_texto(singular, texto):
+            return True
+    elif len(palabra) > 3 and palabra.endswith("s") and not palabra.endswith("es"):
+        singular = palabra[:-1]  # cables→cable
+        if _palabra_en_texto(singular, texto):
+            return True
+    # Plural español: si termina en vocal +s, conson +es
+    if palabra[-1:] in "aeiou":
+        plural = palabra + "s"
+    elif palabra[-1:] in "rzns":
+        plural = palabra + "es"
+    else:
+        plural = palabra + "es"
+    if _palabra_en_texto(plural, texto):
+        return True
+    # Casos irregulares comunes: pin→pines (n→nes)
+    if palabra.endswith("n") and not palabra.endswith("en"):
+        plural_irreg = palabra[:-1] + "nes"
+        if _palabra_en_texto(plural_irreg, texto):
+            return True
+    return False
 
 
 def _score_relevancia(nombre_producto: str, descriptores: list[str]) -> int:
     """Puntúa qué tan relevante es un producto según los descriptores.
 
     Mayor score = más relevante. 0 = no contiene ningún descriptor.
-    Usa matching de palabra completa para evitar falsos positivos (ej: 'rojo' en 'infrarrojo').
-    Si el descriptor contiene un número, el producto debe contener ese número para puntuar.
-    Los valores con unidad (470uf, 4.7kohm, 5v) se comparan numéricamente.
+    Penaliza productos que tienen un valor de la misma clase pero diferente
+    (ej: descriptor pide 470uf, producto tiene 10uf → penalización -20).
     """
     nombre_norm = _normalizar_texto(nombre_producto)
     valores_producto = _extraer_valores(nombre_norm)
     score = 0
     for desc in descriptores:
         desc_norm = _normalizar_texto(desc)
-        # Coincidencia numérica de valores con unidad (470µF == 470 uF, 4.7kΩ == 4.7 KΩ)
+        # 1. Valores con unidad (470uf, 5v, 4.7kohm) — comparación numérica
         valores_desc = _extraer_valores(desc_norm)
         if valores_desc:
-            if valores_desc & valores_producto:
+            matched = False
+            mismatched = False
+            for clase, valor in valores_desc:
+                if (clase, valor) in valores_producto:
+                    matched = True
+                elif any(c == clase for c, _ in valores_producto):
+                    mismatched = True
+            if matched:
                 score += 15
+            if mismatched:
+                score -= 20
             continue
-        # Coincidencia exacta del descriptor completo
+        # 2. Coincidencia exacta del descriptor completo
         if _palabra_en_texto(desc_norm, nombre_norm):
             score += 10
             continue
-        # Coincidencia por partes: separar números de palabras
+        # 3. Descriptor compuesto (ej: '1 canal', '2 pines', '40 surtido')
         partes = desc_norm.split()
         partes_numericas = [p for p in partes if p.replace(".", "").replace(",", "").isdigit()]
         partes_texto = [p for p in partes if p not in partes_numericas]
-        # Si hay parte numérica, debe coincidir para puntuar
-        numero_match = all(_palabra_en_texto(p, nombre_norm) for p in partes_numericas) if partes_numericas else True
-        if not numero_match:
+        if partes_numericas:
+            numero_match = all(_palabra_en_texto(p, nombre_norm) for p in partes_numericas)
+            texto_coincide = any(
+                _palabra_o_plural_en_texto(p, nombre_norm)
+                for p in partes_texto if len(p) >= 3
+            )
+            if not numero_match:
+                # Si el texto coincide pero el número no, penalizar fuerte
+                # ej: descriptor '1 canal', producto '2 canales' → -15
+                if texto_coincide:
+                    score -= 15
+                # Si ni número ni texto coinciden, no dar ni quitar puntos
+                continue
+            # Número coincide: solo dar bonus si el texto también coincide
+            if texto_coincide:
+                score += 8  # número + texto = match fuerte
+            # Si solo el número coincide pero no el texto, no dar bonus
+            # (ej: '2' en '2.8mm' no debe puntuar para descriptor '2 pines')
             continue
-        # Bonus por palabras de texto que coinciden
+        # 4. Bonus por palabras de texto que coinciden (con plurales reales)
         for parte in partes_texto:
-            if len(parte) >= 3 and _palabra_en_texto(parte, nombre_norm):
+            if len(parte) >= 3 and _palabra_o_plural_en_texto(parte, nombre_norm):
                 score += 3
-        # Bonus por números que coinciden
-        for parte in partes_numericas:
-            if _palabra_en_texto(parte, nombre_norm):
-                score += 5
+    # 6. Bonus por 'pack': si hay descriptor 'pack' y el producto tiene '40' o 'pack'
+    if any(_normalizar_texto(d) == "pack" for d in descriptores):
+        if "pack" in nombre_norm or "surtido" in nombre_norm or " 40 " in f" {nombre_norm} ":
+            score += 10
+        else:
+            score -= 5
     return score
 
 
@@ -171,22 +233,28 @@ def _filtrar_y_ordenar_por_relevancia(
         nombre = op.get("nombre_producto", "")
         nombre_norm = _normalizar_texto(nombre)
         score = _score_relevancia(nombre, descriptores) if descriptores else 0
+        # Si el score es negativo (penalización por valor incorrecto), excluir
+        if score < 0:
+            continue
         # Bonus por coincidencia del termino_base (ej: "esp 32" en "ESP32 ESP-WROOM-32")
         # Solo si el termino_base es específico (no solo la palabra del tipo genérico)
+        base_bonus = 0
         if termino_base and not (termino_base == tipo and " " not in termino_base):
             base_norm = _normalizar_texto(termino_base)
             base_sin_espacios = base_norm.replace(" ", "")
             nombre_sin_espacios = nombre_norm.replace(" ", "")
             if _palabra_en_texto(base_norm, nombre_norm) or base_sin_espacios in nombre_sin_espacios:
-                score += 20
+                base_bonus = 10
             elif " " in base_norm:
-                # Matching parcial: +5 por cada palabra del termino_base que aparece
+                # Matching parcial: +3 por cada palabra del termino_base que aparece
                 for palabra in base_norm.split():
                     if len(palabra) >= 4 and _palabra_en_texto(palabra, nombre_norm):
-                        score += 5
+                        base_bonus += 3
+        total = score + base_bonus
         es_tipo = _match_tipo(nombre_norm, tipo, termino_base)
-        op["_relevancia"] = score
-        if score > 0 and es_tipo:
+        op["_relevancia"] = total
+        # Incluir si: es del tipo correcto Y (score > 0 O base_bonus > 0)
+        if es_tipo and total > 0:
             relevantes.append(op)
 
     relevantes.sort(key=lambda o: (-o["_relevancia"], not o.get("disponible", False), o.get("precio_base", 9999)))
