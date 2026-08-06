@@ -289,7 +289,7 @@ def buscar_en_catalogo(productos: list[dict], termino: str) -> list[dict]:
     ))
     for r in resultados:
         r.pop("_coincidencias", None)
-    return resultados
+    return resultados[:50]
 
 
 def invalidar_cache() -> None:

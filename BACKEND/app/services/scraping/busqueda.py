@@ -184,6 +184,19 @@ def _filtrar_y_ordenar_por_relevancia(
     nivel2.sort(key=lambda o: (not o.get("disponible", False), o.get("precio_base", 9999)))
     nivel3.sort(key=lambda o: (-o["_relevancia"], not o.get("disponible", False), o.get("precio_base", 9999)))
 
+    MAX_NIVEL1 = 10
+    MAX_NIVEL2 = 5
+    MAX_NIVEL3 = 3
+    MIN_NIVEL1_PARA_OMITIR = 5
+
+    nivel1 = nivel1[:MAX_NIVEL1]
+    if len(nivel1) >= MIN_NIVEL1_PARA_OMITIR:
+        nivel2 = []
+        nivel3 = []
+    else:
+        nivel2 = nivel2[:MAX_NIVEL2]
+        nivel3 = nivel3[:MAX_NIVEL3]
+
     resultado = nivel1 + nivel2 + nivel3
     for op in resultado:
         op.pop("_relevancia", None)
