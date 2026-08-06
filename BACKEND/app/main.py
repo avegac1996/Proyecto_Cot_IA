@@ -6,7 +6,7 @@ from sqlalchemy import select
 
 from app.api.v1.router import router as v1_router
 from app.core.config import settings
-from app.core.database import Base, async_session, engine
+from app.core.database import async_session, engine
 from app.core.security import hash_password
 from app.models import (
     BancoPregunta,
@@ -30,6 +30,7 @@ TIENDAS_SEED = [
             "product_page_availability": ".stock",
         },
         "usa_javascript": False,
+        "es_favorita": True,
         "ttl_horas": 24,
     },
     {
@@ -174,9 +175,6 @@ async def seed_default_users():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Crear tablas
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
     # Seed de usuarios por defecto
     await seed_default_users()
     # Seed de catálogos (tiendas, preguntas, productos)

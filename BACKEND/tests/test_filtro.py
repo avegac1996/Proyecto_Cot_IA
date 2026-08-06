@@ -70,3 +70,16 @@ class TestExtraerComponentes:
         resultado = extraer_componentes("5 resistencias")
         assert len(resultado) == 1
         assert resultado[0]["termino"] == "resistencia"
+
+    def test_lista_estructurada_con_categoria_y_especificaciones(self):
+        resultado = extraer_componentes(
+            "8 100uF Capacitor\n8 100kΩ Resistor\n3 LED"
+        )
+
+        assert [(item["termino"], item["cantidad"]) for item in resultado] == [
+            ("capacitor 100uf", 8),
+            ("resistencia 100k ohm", 8),
+            ("led", 3),
+        ]
+        assert resultado[0]["termino_base"] == "capacitor"
+        assert resultado[0]["descriptores"] == ["100uf"]

@@ -21,6 +21,11 @@ def _normalizar(texto: str) -> str:
 
 # Sinónimos inversos: término coloquial → término de búsqueda sugerido
 SINONIMOS: dict[str, list[str]] = {
+    "broche porta pila": ["portapilas 9v"],
+    "porta bateria": ["portapilas 9v"],
+    "porta pila": ["portapilas"],
+    "porta pilas": ["portapilas"],
+    "clip bateria": ["portapilas 9v"],
     "foquito": ["led 5mm"],
     "foquitos": ["led 5mm"],
     "bombillo": ["led 5mm"],
@@ -29,8 +34,6 @@ SINONIMOS: dict[str, list[str]] = {
     "tablita": ["protoboard 830"],
     "breadboard": ["protoboard 830"],
     "tabla de pruebas": ["protoboard 830"],
-    "resistor": ["resistencia 220 ohm"],
-    "resistores": ["resistencia 220 ohm"],
     "condensador": ["capacitor 100uf"],
     "eliminador": ["fuente 9v"],
     "cargador": ["fuente 9v"],
@@ -68,6 +71,36 @@ SINONIMOS: dict[str, list[str]] = {
     "puente h": ["l298n"],
     "rpi": ["raspberry pi 4"],
 }
+
+
+def consultas_equivalentes_seguras(termino: str) -> list[str]:
+    """Devuelve consultas equivalentes sin cambiar el tipo de producto.
+
+    Estas equivalencias se pueden probar automáticamente: ``broche porta
+    pila`` y ``portapilas`` nombran el mismo artículo. No incluye sugerencias
+    genéricas como ``pila`` o ``batería``, que cambiarían el producto pedido.
+    """
+    termino_norm = _normalizar(termino)
+    consultas: list[str] = []
+    for clave, sugerencias in SINONIMOS.items():
+        if clave in termino_norm:
+            for sugerencia in sugerencias:
+                if sugerencia not in consultas:
+                    consultas.append(sugerencia)
+    return consultas
+
+
+def consultas_parciales_para_confirmar(termino: str) -> list[str]:
+    """Busca por encapsulado cuando falta confirmar un valor eléctrico.
+
+    No es una sustitución automática: permite encontrar una resistencia SMD
+    del encapsulado pedido y la capa API la marca para confirmación del usuario.
+    """
+    termino_norm = _normalizar(termino).replace("ω", "ohm")
+    match = re.search(r"\b(?:resistor|resistencia)\b.*?\b(0201|0402|0603|0805|1206|1210)\b", termino_norm)
+    if not match:
+        return []
+    return [f"resistencia smd {match.group(1)}"]
 
 # Mapeo de sensores específicos
 SENSOR_SUGERENCIAS: dict[str, str] = {

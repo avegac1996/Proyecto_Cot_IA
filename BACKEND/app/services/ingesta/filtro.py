@@ -16,6 +16,7 @@ from app.services.matching.normalizer import (
     COLORES,
     DESCRIPCIONES_EXTRA,
     TAMANOS_LED,
+    TIPOS_DIODOS,
     TIPOS_MOTOR,
     TIPOS_SENSOR,
     TIPOS_PALABRAS,
@@ -25,6 +26,7 @@ from app.services.matching.normalizer import (
 def _normalizar(texto: str) -> str:
     """Lowercase, sin tildes, sin puntuación excesiva."""
     texto = texto.lower().strip()
+    texto = texto.replace("Ω", " ohm ").replace("ω", " ohm ")
     # Sin tildes
     texto = unicodedata.normalize("NFD", texto)
     texto = "".join(c for c in texto if unicodedata.category(c) != "Mn")
@@ -35,6 +37,22 @@ def _normalizar(texto: str) -> str:
     return texto.strip()
 
 
+def _tipo_y_descriptores_lista(termino: str) -> tuple[str, list[str]]:
+    """Obtiene categoría y especificaciones de una línea reconocida por IA."""
+    candidatos = [
+        (palabra, tipo)
+        for tipo, palabras in TIPOS_PALABRAS.items()
+        for palabra in palabras
+    ]
+    for palabra, tipo in sorted(candidatos, key=lambda item: len(item[0]), reverse=True):
+        match = re.search(r"(?<!\w)" + re.escape(palabra) + r"(?!\w)", termino)
+        if match:
+            restante = (termino[:match.start()] + " " + termino[match.end():]).strip()
+            restante = re.sub(r"\s+", " ", restante)
+            return tipo.replace("_", " "), [restante] if restante else []
+    return termino, []
+
+
 def _construir_diccionario_busqueda() -> dict[str, str]:
     """Construye un diccionario término → tipo desde TIPOS_PALABRAS y listas auxiliares."""
     dic = {}
@@ -43,16 +61,18 @@ def _construir_diccionario_busqueda() -> dict[str, str]:
             dic[palabra] = tipo
     # Agregar tipos específicos de sensor
     for sensor_tipo in TIPOS_SENSOR:
-        dic[sensor_tipo] = "sensor"
+        dic[sensor_tipo] = "descriptor"
     # Agregar tipos de motor
     for motor_tipo in TIPOS_MOTOR:
-        dic[motor_tipo] = "motor"
+        dic[motor_tipo] = "descriptor"
     # Agregar colores
     for color in COLORES:
         dic[color] = "color"
     # Agregar tamaños LED
     for tam in TAMANOS_LED:
         dic[tam] = "tamano"
+    for tipo_diodo in TIPOS_DIODOS:
+        dic[tipo_diodo] = "descriptor"
     # Agregar descripciones extra como tipo 'descriptor'
     for desc in DESCRIPCIONES_EXTRA:
         dic[desc] = "descriptor"
@@ -66,6 +86,8 @@ _PALABRAS_COMPONENTE = {
     p for p, tipo in _DICCIONARIO.items()
     if tipo not in ("color", "tamano", "descriptor")
 }
+
+PALABRAS_ENLACE = {"de", "del", "para", "con", "tipo"}
 
 
 def _extraer_cantidad(texto: str, posicion: int) -> int:
@@ -120,6 +142,24 @@ def _buscar_descriptores(
     j = fin
     while j < len(palabras) and not consumido[j]:
         palabra = palabras[j]
+        if palabra in PALABRAS_ENLACE:
+            for v in (3, 2, 1):
+                inicio_descriptor = j + 1
+                fin_descriptor = inicio_descriptor + v
+                if fin_descriptor > len(palabras) or any(consumido[inicio_descriptor:fin_descriptor]):
+                    continue
+                ngram = " ".join(palabras[inicio_descriptor:fin_descriptor])
+                if ngram in _DICCIONARIO and _DICCIONARIO[ngram] in ("color", "tamano", "descriptor"):
+                    descriptores.append(f"{palabra} {ngram}")
+                    for k in range(j, fin_descriptor):
+                        consumido[k] = True
+                    j = fin_descriptor
+                    break
+            else:
+                consumido[j] = True
+                j += 1
+            if j > inicio:
+                continue
         # Si es un número, verificar si es cantidad de otro componente o especificación
         if palabra.isdigit():
             # Si la siguiente palabra es un componente conocido, parar (nueva línea)
@@ -153,7 +193,7 @@ def _buscar_descriptores(
             continue
         # Probar n-grams de 2 y 1 hacia adelante
         encontrado = False
-        for v in (2, 1):
+        for v in (3, 2, 1):
             if j + v <= len(palabras) and not any(consumido[j : j + v]):
                 ngram = " ".join(palabras[j : j + v])
                 if ngram in _DICCIONARIO:
@@ -176,6 +216,11 @@ def _buscar_descriptores(
                         encontrado = True
                         break
         if not encontrado:
+            if re.fullmatch(r"[a-z]+[a-z0-9-]*\d[a-z0-9-]*", palabra, re.IGNORECASE):
+                descriptores.append(palabra)
+                consumido[j] = True
+                j += 1
+                continue
             # Si la palabra no es descriptor ni sinónimo, parar
             break
 
@@ -206,6 +251,37 @@ def _buscar_descriptores(
     return descriptores
 
 
+def _extraer_lista_estructurada(mensaje: str) -> list[dict] | None:
+    """Conserva listas ya reconocidas por imagen, una entrada por renglón.
+
+    Gemini Vision entrega precisamente el formato ``cantidad producto``. Volver
+    a pasarlo por los n-grams genéricos hacía que se perdieran modelos y tipos
+    que aún no están en el diccionario (por ejemplo 1N5408, varistor o
+    baquelita). Solo se activa cuando hay al menos dos líneas estructuradas;
+    el texto libre conserva el comportamiento existente.
+    """
+    resultados: list[dict] = []
+    for linea in mensaje.splitlines():
+        match = re.match(r"^\s*(\d+)\s*(?:x|×)?\s+(.+?)\s*$", linea, re.IGNORECASE)
+        if not match:
+            continue
+        termino = _normalizar(match.group(2))
+        if not termino:
+            continue
+        termino_base, descriptores = _tipo_y_descriptores_lista(termino)
+        termino_busqueda = " ".join([termino_base, *descriptores]).strip()
+        resultados.append({
+            "termino": termino_busqueda,
+            # Se usa el término completo también como base para evitar que un
+            # modelo específico caiga en un listado genérico ("diodo" → LED).
+            "termino_base": termino_base,
+            "descriptores": descriptores,
+            "cantidad": int(match.group(1)),
+            "tipo": "lista_estructurada",
+        })
+    return resultados if len(resultados) >= 2 else None
+
+
 def extraer_componentes(mensaje: str) -> list[dict]:
     """Extrae componentes electrónicos de un mensaje conversacional.
 
@@ -216,6 +292,10 @@ def extraer_componentes(mensaje: str) -> list[dict]:
     Returns:
         list[dict] con keys: termino (str), cantidad (int), tipo (str)
     """
+    lista_estructurada = _extraer_lista_estructurada(mensaje)
+    if lista_estructurada is not None:
+        return lista_estructurada
+
     texto = _normalizar(mensaje)
     if not texto:
         return []

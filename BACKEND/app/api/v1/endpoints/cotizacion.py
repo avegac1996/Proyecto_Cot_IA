@@ -74,6 +74,56 @@ class CrearDesdeCarritoRequest(BaseModel):
     envio_precio: float | None = None
 
 
+class ComponenteContextoRequest(BaseModel):
+    termino: str
+    cantidad: int
+
+
+class BorradorRequest(BaseModel):
+    componentes: list[ComponenteContextoRequest]
+
+
+def _componentes_contexto(componentes: list[ComponenteContextoRequest]) -> list[dict]:
+    return [{"termino": componente.termino, "cantidad": componente.cantidad} for componente in componentes]
+
+
+@router.post("/cotizacion/borrador", response_model=CotizacionResponse, status_code=status.HTTP_201_CREATED)
+async def crear_borrador(
+    body: BorradorRequest,
+    db: AsyncSession = Depends(get_db),
+    user: Usuario = Depends(get_current_user),
+):
+    """Crea el contexto persistente de una cotización antes de seleccionar ítems."""
+    import uuid as uuid_mod
+    from decimal import Decimal
+
+    sesion = Sesion(id=uuid_mod.uuid4(), usuario_id=user.id, componentes_json=_componentes_contexto(body.componentes))
+    db.add(sesion)
+    await db.flush()
+    cotizacion = Cotizacion(session_id=sesion.id, usuario_id=user.id, estado="borrador", total=Decimal("0"))
+    db.add(cotizacion)
+    await db.commit()
+    await db.refresh(cotizacion)
+    return _to_response(cotizacion)
+
+
+@router.post("/cotizacion/{cotizacion_id}/contexto", response_model=CotizacionResponse)
+async def agregar_contexto_borrador(
+    cotizacion_id: int,
+    body: BorradorRequest,
+    db: AsyncSession = Depends(get_db),
+    user: Usuario = Depends(get_current_user),
+):
+    cotizacion = await _get_cotizacion_by_id(cotizacion_id, user, db)
+    if cotizacion.estado == "finalizada":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail={"code": "COTIZACION_LOCKED", "message": "La cotización ya está finalizada"})
+    sesion = await _get_sesion(cotizacion.session_id, user, db)
+    sesion.componentes_json = [*(sesion.componentes_json or []), *_componentes_contexto(body.componentes)]
+    await db.commit()
+    await db.refresh(cotizacion)
+    return _to_response(cotizacion)
+
+
 @router.post("/cotizacion/desde-carrito", response_model=CotizacionResponse, status_code=status.HTTP_201_CREATED)
 async def crear_desde_carrito(
     body: CrearDesdeCarritoRequest,
@@ -113,7 +163,19 @@ async def crear_desde_carrito(
             cotizacion.envio_nombre = body.envio_nombre
         if body.envio_precio is not None:
             cotizacion.envio_precio = Decimal(str(body.envio_precio))
+        if cotizacion.estado == "borrador":
+            if not all([cotizacion.cliente_nombre, cotizacion.cliente_correo, cotizacion.cliente_celular]):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail={"code": "CLIENT_DATA_REQUIRED", "message": "Ingrese nombre, correo y celular del cliente antes de generar la cotización"},
+                )
+            cotizacion.estado = "pendiente"
     else:
+        if not all([body.cliente_nombre, body.cliente_correo, body.cliente_celular]):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={"code": "CLIENT_DATA_REQUIRED", "message": "Ingrese nombre, correo y celular del cliente antes de generar la cotización"},
+            )
         sesion = Sesion(
             id=uuid_mod.uuid4(),
             usuario_id=user.id,
@@ -242,6 +304,20 @@ async def listar_cotizaciones(
     base = select(Cotizacion, Usuario.username).join(
         Usuario, Cotizacion.usuario_id == Usuario.id
     )
+    # El historial representa cotizaciones ya generadas. Esto excluye tanto
+    # los borradores nuevos como intentos antiguos que quedaron sin los datos
+    # mínimos del cliente.
+    base = base.where(
+        Cotizacion.estado != "borrador",
+        Cotizacion.cliente_nombre.is_not(None),
+        Cotizacion.cliente_correo.is_not(None),
+        Cotizacion.cliente_celular.is_not(None),
+    )
+
+    # Los administradores pueden consultar el historial global. Cada usuario
+    # normal solo puede ver las cotizaciones que creó.
+    if user.rol != "admin":
+        base = base.where(Cotizacion.usuario_id == user.id)
 
     if q:
         filtro = f"%{q.lower()}%"
@@ -300,7 +376,7 @@ async def listar_cotizaciones(
 async def _get_cotizacion_by_id(cotizacion_id: int, user: Usuario, db: AsyncSession) -> Cotizacion:
     result = await db.execute(select(Cotizacion).where(Cotizacion.id == cotizacion_id))
     cotizacion = result.scalar_one_or_none()
-    if cotizacion is None:
+    if cotizacion is None or (cotizacion.usuario_id != user.id and user.rol != "admin"):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={"code": "COTIZACION_NOT_FOUND", "message": "Cotización no encontrada"},
@@ -363,13 +439,9 @@ async def seleccionar_proveedor(
             detail={"code": "ITEM_NOT_FOUND", "message": "Ítem no encontrado"},
         )
 
-    result = await db.execute(select(Cotizacion).where(Cotizacion.id == item.cotizacion_id))
-    cotizacion = result.scalar_one_or_none()
-    if cotizacion is None:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail={"code": "FORBIDDEN", "message": "No tiene permiso sobre esta cotización"},
-        )
+    # El ítem se puede identificar por ID, pero la autorización se decide por
+    # la cotización a la que pertenece, no por conocer ese ID.
+    cotizacion = await _get_cotizacion_by_id(item.cotizacion_id, user, db)
 
     if cotizacion.estado == "finalizada":
         raise HTTPException(

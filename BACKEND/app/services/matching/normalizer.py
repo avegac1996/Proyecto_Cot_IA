@@ -27,6 +27,9 @@ TIPOS_PALABRAS: dict[str, list[str]] = {
     "raspberry": ["raspberry", "raspberry pi", "rpi"],
     "bateria": ["bateria", "baterias", "pila", "pilas"],
     "porta_pila": ["porta pila", "porta pilas", "broche", "porta bateria", "clip bateria"],
+    "varistor": ["varistor", "varistores", "mov"],
+    "baquelita": ["baquelita", "placa perforada", "perfboard"],
+    "bornero": ["bornero", "bornera", "terminal con tornillo", "borne de tornillo"],
 }
 
 COLORES = ["rojo", "rojos", "verde", "verdes", "azul", "azules", "amarillo", "amarillos", "amarrillo", "amarrillos", "blanco", "blancos", "rgb", "naranja", "naranjas", "violeta", "morado", "morados", "negro", "negros"]

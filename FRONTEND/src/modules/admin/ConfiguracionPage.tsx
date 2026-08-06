@@ -73,7 +73,8 @@ export default function ConfiguracionPage() {
       }
       if (geminiKey !== geminiKeyOriginal && geminiKey.trim() && !geminiKey.includes('*')) {
         const key = await actualizarGeminiApiKey(geminiKey.trim())
-        setGeminiKeyOriginal(key)
+        setGeminiKey(key.api_key)
+        setGeminiKeyOriginal(key.api_key)
         setGeminiKeyRevelada(null)
       }
       setSuccess(true)

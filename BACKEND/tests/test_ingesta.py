@@ -68,4 +68,4 @@ class TestDetectarTipo:
         assert detectar_tipo("arduino uno") == "arduino"
 
     def test_desconocido(self):
-        assert detectar_tipo("widget raro") == "otro"
+        assert detectar_tipo("widget raro") == "desconocido"

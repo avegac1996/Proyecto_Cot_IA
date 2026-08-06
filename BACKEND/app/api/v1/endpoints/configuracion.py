@@ -6,7 +6,7 @@ from app.api.deps import get_current_user, require_admin
 from app.core.database import get_db
 from app.core.security import verify_password
 from app.models.usuario import Usuario
-from app.services.configuracion import actualizar_margen, actualizar_iva, obtener_margen, obtener_iva, obtener_tienda_propia, obtener_opciones_envio, actualizar_opciones_envio, obtener_gemini_api_key, actualizar_gemini_api_key
+from app.services.configuracion import GeminiKeyStorageError, actualizar_margen, actualizar_iva, obtener_margen, obtener_iva, obtener_tienda_propia, obtener_opciones_envio, actualizar_opciones_envio, obtener_gemini_api_key, actualizar_gemini_api_key
 
 router = APIRouter(prefix="/configuracion", tags=["configuracion"])
 
@@ -47,6 +47,13 @@ def _mask_key(key: str) -> str:
     if not key or len(key) <= 10:
         return "*" * len(key) if key else ""
     return key[:6] + "*" * (len(key) - 10) + key[-4:]
+
+
+def _gemini_storage_error(exc: GeminiKeyStorageError) -> HTTPException:
+    return HTTPException(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        detail={"code": "GEMINI_KEY_STORAGE_ERROR", "message": str(exc)},
+    )
 
 
 @router.get("", response_model=ConfiguracionResponse)
@@ -138,7 +145,10 @@ async def obtener_gemini_key(
     db: AsyncSession = Depends(get_db),
     user: Usuario = Depends(require_admin),
 ):
-    key = await obtener_gemini_api_key(db)
+    try:
+        key = await obtener_gemini_api_key(db)
+    except GeminiKeyStorageError as exc:
+        raise _gemini_storage_error(exc) from exc
     return {"api_key": _mask_key(key), "has_key": bool(key)}
 
 
@@ -153,7 +163,10 @@ async def revelar_gemini_key(
             status_code=status.HTTP_403_FORBIDDEN,
             detail={"code": "INVALID_PASSWORD", "message": "Contraseña incorrecta"},
         )
-    key = await obtener_gemini_api_key(db)
+    try:
+        key = await obtener_gemini_api_key(db)
+    except GeminiKeyStorageError as exc:
+        raise _gemini_storage_error(exc) from exc
     return {"api_key": key}
 
 
@@ -168,5 +181,8 @@ async def actualizar_gemini_key(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail={"code": "EMPTY_KEY", "message": "La API key no puede estar vacía"},
         )
-    key = await actualizar_gemini_api_key(db, body.api_key.strip())
-    return {"api_key": key}
+    try:
+        key = await actualizar_gemini_api_key(db, body.api_key.strip())
+    except GeminiKeyStorageError as exc:
+        raise _gemini_storage_error(exc) from exc
+    return {"api_key": _mask_key(key), "has_key": True}

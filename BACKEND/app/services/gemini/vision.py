@@ -5,8 +5,6 @@ import logging
 
 import httpx
 
-from app.services.configuracion import obtener_gemini_api_key
-
 logger = logging.getLogger(__name__)
 
 GEMINI_MODEL = "gemini-flash-lite-latest"
@@ -25,7 +23,7 @@ PROMPT = (
 )
 
 
-async def identificar_componentes_imagen(image_bytes: bytes, mime_type: str) -> str:
+async def identificar_componentes_imagen(image_bytes: bytes, mime_type: str, api_key: str) -> str:
     """Envía una imagen a Gemini Vision y devuelve el texto identificado.
 
     Args:
@@ -35,11 +33,6 @@ async def identificar_componentes_imagen(image_bytes: bytes, mime_type: str) -> 
     Returns:
         Texto con los componentes identificados, una línea por producto.
     """
-    from app.core.database import async_session
-
-    async with async_session() as db:
-        api_key = await obtener_gemini_api_key(db)
-
     if not api_key:
         raise ValueError("GEMINI_API_KEY no configurada")
 

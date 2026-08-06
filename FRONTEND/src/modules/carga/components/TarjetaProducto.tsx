@@ -7,7 +7,7 @@ interface Props {
   resultado: ResultadoComponente
   onToggleSeleccion: (termino: string, cantidad: number, opcion: OpcionProducto) => void
   seleccionadas: OpcionProducto[]
-  onBuscarSugerencia?: (sugerencia: string) => void
+  onConfirmarProducto?: (candidato: string) => void
 }
 
 function money(value: number | null): string {
@@ -15,13 +15,14 @@ function money(value: number | null): string {
   return `$${Number(value).toFixed(2)}`
 }
 
-export default function TarjetaProducto({ resultado, onToggleSeleccion, seleccionadas, onBuscarSugerencia }: Props) {
-  const { termino, cantidad, opciones, encontrado_propia, sugerencia } = resultado
+export default function TarjetaProducto({ resultado, onToggleSeleccion, seleccionadas, onConfirmarProducto }: Props) {
+  const { termino, cantidad, opciones, encontrado_propia, confirmacion } = resultado
   const [agotadoExpandido, setAgotadoExpandido] = useState<string | null>(null)
   const [alternativasRemotas, setAlternativasRemotas] = useState<Record<string, OpcionProducto[]>>({})
   const [cargandoAlternativas, setCargandoAlternativas] = useState<string | null>(null)
   const [varianteSeleccionada, setVarianteSeleccionada] = useState<string | null>(null)
   const [colapsado, setColapsado] = useState(false)
+  const [mostrarOtrasTiendas, setMostrarOtrasTiendas] = useState(false)
 
   // Auto-colapsar cuando hay productos seleccionados
   useEffect(() => {
@@ -34,6 +35,11 @@ export default function TarjetaProducto({ resultado, onToggleSeleccion, seleccio
     seleccionadas.some((s) => s.tienda === op.tienda && s.nombre_producto === op.nombre_producto)
 
   const opcionesDisponibles = opciones.filter((o) => o.disponible)
+  const opcionesFavoritas = opciones.filter((o) => o.es_favorita)
+  const opcionesOtrasTiendas = opciones.filter((o) => !o.es_favorita)
+  const opcionesMostradas = opcionesFavoritas.length > 0 && !mostrarOtrasTiendas
+    ? opcionesFavoritas
+    : opciones
 
   const handleClickVariante = (e: React.MouseEvent, op: OpcionProducto, variante: string) => {
     e.stopPropagation()
@@ -86,14 +92,12 @@ export default function TarjetaProducto({ resultado, onToggleSeleccion, seleccio
           <span className="font-bold text-sm" style={{ color: 'var(--color-text)' }}>
             {termino}
           </span>
-          {cantidad > 1 && (
-            <span
-              className="px-2 py-0.5 rounded text-xs font-medium"
-              style={{ backgroundColor: 'var(--color-primary)', color: '#fff' }}
-            >
-              x{cantidad}
-            </span>
-          )}
+          <span
+            className="px-2 py-0.5 rounded text-xs font-medium"
+            style={{ backgroundColor: 'var(--color-primary)', color: '#fff' }}
+          >
+            {cantidad} {cantidad === 1 ? 'unidad' : 'unidades'} solicitadas
+          </span>
           {encontrado_propia && (
             <span
               className="flex items-center gap-1 px-1.5 py-0.5 rounded text-xs"
@@ -118,28 +122,41 @@ export default function TarjetaProducto({ resultado, onToggleSeleccion, seleccio
         </span>
       </div>
 
+      {opciones.length > 0 && confirmacion && (
+        <div
+          className="flex items-start gap-2 border-b px-4 py-3 text-xs"
+          style={{ borderColor: '#FEF3C7', backgroundColor: '#FFFBEB', color: '#92400E' }}
+        >
+          <Lightbulb className="w-4 h-4 flex-shrink-0 mt-0.5" />
+          <p className="font-medium">{confirmacion.pregunta}</p>
+        </div>
+      )}
+
       {opciones.length === 0 ? (
         <div className="px-4 py-4 space-y-2">
+          <p className="text-center text-xs font-medium" style={{ color: 'var(--color-text)' }}>
+            Cantidad solicitada: {cantidad} {cantidad === 1 ? 'unidad' : 'unidades'}
+          </p>
           <div className="flex items-center justify-center gap-2 text-sm" style={{ color: 'var(--color-text-muted)' }}>
             <X className="w-4 h-4" />
             No encontrado en ninguna tienda
           </div>
-          {sugerencia && (
+          {confirmacion && (
             <div
               className="flex items-start gap-2 rounded-lg border p-3 text-xs"
               style={{ borderColor: '#FEF3C7', backgroundColor: '#FFFBEB', color: '#92400E' }}
             >
               <Lightbulb className="w-4 h-4 flex-shrink-0 mt-0.5" />
               <div className="flex-1">
-                <p className="font-medium mb-1">¿Buscabas "{sugerencia.sugerencia}"?</p>
-                <p className="opacity-80 mb-2">{sugerencia.razon}</p>
-                {onBuscarSugerencia && (
+                <p className="font-medium mb-1">{confirmacion.pregunta}</p>
+                <p className="opacity-80 mb-2">Confirma antes de buscar un producto alternativo.</p>
+                {confirmacion.candidato && onConfirmarProducto && (
                   <button
-                    onClick={() => onBuscarSugerencia(sugerencia.sugerencia)}
+                    onClick={() => onConfirmarProducto(confirmacion.candidato!)}
                     className="px-2 py-1 rounded text-xs font-medium transition-colors"
                     style={{ backgroundColor: '#92400E', color: '#fff' }}
                   >
-                    Buscar "{sugerencia.sugerencia}"
+                    Sí, buscar "{confirmacion.candidato}"
                   </button>
                 )}
               </div>
@@ -148,7 +165,7 @@ export default function TarjetaProducto({ resultado, onToggleSeleccion, seleccio
         </div>
       ) : colapsado ? null : (
         <div className="divide-y" style={{ borderColor: 'var(--color-border)' }}>
-          {opciones.map((op) => {
+          {opcionesMostradas.map((op) => {
             const selected = isSelected(op)
             const key = `${op.tienda}-${op.nombre_producto}`
             const isExpanded = agotadoExpandido === key
@@ -190,6 +207,17 @@ export default function TarjetaProducto({ resultado, onToggleSeleccion, seleccio
                         style={{ color: selected ? 'rgba(255,255,255,0.8)' : 'var(--color-text-muted)' }}
                       >
                         {op.tienda}
+                        {op.es_favorita && (
+                          <span
+                            className="px-1.5 py-0.5 rounded text-xs"
+                            style={{
+                              backgroundColor: selected ? 'rgba(255,255,255,0.2)' : '#E0E7FF',
+                              color: selected ? '#fff' : '#3730A3',
+                            }}
+                          >
+                            Tienda favorita
+                          </span>
+                        )}
                         {op.es_propio && (
                           <span
                             className="px-1.5 py-0.5 rounded text-xs"
@@ -260,6 +288,12 @@ export default function TarjetaProducto({ resultado, onToggleSeleccion, seleccio
                     </div>
                   </div>
                   <div className="text-right flex-shrink-0 ml-2">
+                    <div
+                      className="text-xs font-medium mb-0.5"
+                      style={{ color: selected ? 'rgba(255,255,255,0.85)' : 'var(--color-primary)' }}
+                    >
+                      x{cantidad} solicitado{cantidad === 1 ? '' : 's'}
+                    </div>
                     <div
                       className="font-bold text-sm"
                       style={{ color: selected ? '#fff' : 'var(--color-text)' }}
@@ -357,6 +391,24 @@ export default function TarjetaProducto({ resultado, onToggleSeleccion, seleccio
               </div>
             )
           })}
+          {opcionesFavoritas.length > 0 && opcionesOtrasTiendas.length > 0 && (
+            <button
+              onClick={() => setMostrarOtrasTiendas((visible) => !visible)}
+              className="w-full flex items-center justify-center gap-1 px-4 py-3 text-sm font-medium transition-colors hover:opacity-80"
+              style={{ color: 'var(--color-primary)', backgroundColor: 'var(--color-bg)' }}
+            >
+              {mostrarOtrasTiendas ? 'Ocultar otras tiendas' : `Ver productos en otras tiendas (${opcionesOtrasTiendas.length})`}
+              {mostrarOtrasTiendas ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            </button>
+          )}
+          {opcionesFavoritas.length > 0 && opcionesOtrasTiendas.length === 0 && (
+            <p
+              className="px-4 py-3 text-center text-xs"
+              style={{ color: 'var(--color-text-muted)', backgroundColor: 'var(--color-bg)' }}
+            >
+              No se encontraron coincidencias disponibles en las otras tiendas para este producto.
+            </p>
+          )}
         </div>
       )}
     </div>

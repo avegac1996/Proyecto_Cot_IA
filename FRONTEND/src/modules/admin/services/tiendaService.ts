@@ -18,6 +18,7 @@ export interface Tienda {
   url_base: string
   usa_javascript: boolean
   activa: boolean
+  es_favorita: boolean
   ttl_horas: number
   selectores: SelectoresTienda
 }
@@ -27,6 +28,7 @@ export interface TiendaCreate {
   url_base: string
   usa_javascript: boolean
   activa: boolean
+  es_favorita: boolean
   ttl_horas: number
   selectores: SelectoresTienda
 }

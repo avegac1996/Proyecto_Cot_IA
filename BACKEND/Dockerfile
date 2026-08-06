@@ -39,9 +39,10 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Dependencias de Python
-COPY requirements.txt .
+COPY requirements.txt requirements-dev.txt .
 RUN pip install --no-cache-dir setuptools==69.5.1 wheel
 RUN pip install --no-cache-dir --no-build-isolation -r requirements.txt
+RUN pip install --no-cache-dir -r requirements-dev.txt
 # Instalar Whisper por separado (setup.py incompatible con build isolation en Python 3.13)
 RUN pip install --no-cache-dir --no-build-isolation openai-whisper==20240930 || \
     pip install --no-cache-dir --no-build-isolation openai-whisper

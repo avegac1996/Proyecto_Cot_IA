@@ -8,14 +8,14 @@ Sistema de cotización automatizada de componentes electrónicos con scraping mu
 
 | Capa | Tecnología |
 |------|-----------|
-| Backend | FastAPI (Python 3.12), SQLAlchemy async, Pydantic |
+| Backend | FastAPI (Python 3.13), SQLAlchemy async, Pydantic |
 | Frontend | React 18 + TypeScript, Vite, Tailwind CSS, Zustand |
 | Base de Datos | PostgreSQL 16 |
 | IA | Google Gemini Vision (`gemini-flash-lite-latest`) |
 | PDF/Excel | ReportLab, openpyxl |
 | Scraping | httpx + BeautifulSoup4 (estático), Playwright (dinámico), Wayback Machine |
 | Contenedores | Docker Compose |
-| Auth | JWT (python-jose), bcrypt |
+| Auth | JWT (python-jose); migración a bcrypt pendiente |
 
 ---
 
@@ -31,6 +31,13 @@ docker-compose.yml
 
 ---
 
+## Estado operativo y límites actuales
+
+- El despliegue activo usa PostgreSQL, pgAdmin, backend y frontend. **No usa Redis, Celery ni colas de tareas** porque no hay workers ni tareas Celery implementados en el código.
+- El scraping se ejecuta bajo demanda. PostgreSQL conserva resultados por término y tienda con un TTL configurable; al vencer, la siguiente búsqueda refresca únicamente esa tienda.
+- Redis/Celery quedan como una ampliación futura para refrescos programados, no como requisito de ejecución actual.
+- Alembic es la única vía de evolución del esquema; el backend aplica `alembic upgrade head` al iniciar.
+
 ## Backend — Estructura
 
 ```
@@ -39,7 +46,7 @@ BACKEND/app/
 ├── core/
 │   ├── config.py            # Settings (Pydantic BaseSettings): DB URL, JWT, Gemini API key, márgenes
 │   ├── database.py          # Engine async, sessionmaker, get_db dependency
-│   └── security.py          # JWT create/verify, bcrypt hash/verify
+│   └── security.py          # JWT create/verify; bcrypt pendiente
 ├── models/                  # Modelos SQLAlchemy ORM
 │   ├── usuario.py           # Usuario (id, username, email, password_hash, rol, activo)
 │   ├── sesion.py            # Sesion de búsqueda (id UUID, usuario_id, componentes_json)
@@ -94,7 +101,7 @@ BACKEND/app/
    - Para cada componente, busca en paralelo en todas las tiendas activas
    - AV Electronics (tienda propia) se busca sin margen; tiendas externas con margen configurable
    - Resultados se ordenan por precio y disponibilidad
-   - Si no hay resultados, genera sugerencias
+   - Si no hay resultados exactos, Gemini propone un sinónimo que debe ser confirmado antes de una nueva búsqueda
 
 2. **Cotización** (`POST /cotizacion/desde-carrito`):
    - Recibe items del carrito con tienda y precio seleccionados
@@ -114,7 +121,7 @@ BACKEND/app/
    - Mantiene historial conversacional (últimos 6 mensajes)
 
 5. **Reconocimiento de Imagen** (`POST /buscar/imagen`):
-   - Recibe imagen en base64
+   - Recibe una imagen mediante `multipart/form-data`
    - Gemini Vision identifica componentes electrónicos
    - Retorna texto extraído y lista de componentes
 
@@ -199,7 +206,7 @@ FRONTEND/src/
 | id | int PK | Auto-increment |
 | username | str unique | Nombre de usuario |
 | email | str unique | Email |
-| password_hash | str | bcrypt hash |
+| password_hash | str | Actualmente texto plano; migración a bcrypt pendiente |
 | rol | str | "admin" o "user" |
 | activo | bool | Estado activo/inactivo |
 
@@ -212,9 +219,11 @@ FRONTEND/src/
 | cliente_nombre | str? | Nombre del cliente |
 | cliente_correo | str? | Correo del cliente |
 | cliente_celular | str? | Celular del cliente |
-| estado | str | "pendiente" o "finalizada" |
+| estado | str | "borrador", "pendiente" o "finalizada" |
 | total | Decimal | Subtotal sin IVA |
 | fecha_creacion | datetime | Timestamp |
+
+Una cotización comienza como `borrador` mientras se agregan búsquedas y productos. Solo cambia a `pendiente` al generar la cotización con nombre, correo y celular del cliente. Los borradores y cotizaciones incompletas no se muestran en el historial.
 
 ### CotizacionItem
 | Campo | Tipo | Descripción |
@@ -239,8 +248,9 @@ FRONTEND/src/
 | base_url | str | |
 | selectors | JSON | Selectores CSS/JS para scraping |
 | activa | bool | |
+| es_favorita | bool | Una sola tienda prioritaria; aparece primero en los resultados |
 | usa_javascript | bool | Requiere Playwright |
-| use_wayback | bool | Usar Wayback Machine |
+| ttl_horas | int | Frecuencia máxima de refresco de su caché |
 
 ### ConfiguracionNegocio
 | Campo | Tipo | Descripción |
@@ -249,6 +259,8 @@ FRONTEND/src/
 | clave | str unique | "margen_competencia", "tienda_propia", "iva" |
 | valor | str | Valor almacenado |
 | descripcion | str? | |
+
+La clave `gemini_api_key` se guarda cifrada con Fernet y prefijo `enc:v1:`. La clave maestra `GEMINI_KEY_ENCRYPTION_KEY` permanece únicamente en el entorno. La clave efectiva es la de BD cifrada y, si no existe, `GEMINI_API_KEY` del entorno.
 
 ---
 
@@ -265,17 +277,25 @@ FRONTEND/src/
 
 ### Cotización
 - `POST /api/v1/cotizacion/desde-carrito` — Crear/actualizar desde carrito
+- `POST /api/v1/cotizacion/borrador` — Crear el contexto persistente de una cotización en curso
+- `POST /api/v1/cotizacion/{id}/contexto` — Agregar componentes reconocidos al borrador o cotización autorizada
 - `GET /api/v1/cotizaciones` — Listar (con usuario_nombre)
 - `GET /api/v1/cotizacion/by-id/{id}` — Obtener por ID
 - `GET /api/v1/cotizacion/{id}/pdf` — Descargar PDF (con subtotal, IVA, total)
 - `GET /api/v1/cotizacion/{id}/excel` — Descargar Excel
 - `POST /api/v1/cotizacion/{id}/finalizar` — Finalizar cotización
 - `DELETE /api/v1/cotizacion/{id}` — Eliminar cotización
+- `PUT /api/v1/cotizacion/{id}/envio` — Actualizar envío
+- `POST /api/v1/cotizacion/{id}/agregar` — Añadir un ítem manual
+- `PUT /api/v1/cotizacion/item/{item_id}/seleccionar` — Seleccionar proveedor autorizado
 
 ### Configuración
 - `GET /api/v1/configuracion` — Obtener (margen, tienda_propia, iva)
 - `PUT /api/v1/configuracion/margen` — Actualizar margen (admin)
 - `PUT /api/v1/configuracion/iva` — Actualizar IVA (admin)
+- `GET/PUT /api/v1/configuracion/envio` — Consultar o actualizar opciones de envío
+- `GET/PUT /api/v1/configuracion/gemini-key` — Consultar estado o guardar la clave Gemini cifrada
+- `POST /api/v1/configuracion/gemini-key/revelar` — Revelar la clave solo tras validar contraseña de administrador
 
 ### Tiendas, Usuarios, Productos
 - CRUD completo para admin
@@ -289,7 +309,7 @@ FRONTEND/src/
    - Busca en tiendas externas **con margen** aplicado
    - Ambas búsquedas en paralelo con `asyncio.gather`
 
-2. `buscar_precios(termino, tienda, db)`:
+2. `buscar_por_termino(db, termino)` consulta la caché por término y, cuando corresponde, delega el scraping a cada tienda activa. `buscar_precios(db, producto)` aplica el mismo patrón para productos catalogados:
    - Selecciona scraper según configuración de tienda:
      - `usa_javascript=False, use_wayback=False` → `StaticScraper` (httpx + BS4)
      - `usa_javascript=True` → `DynamicScraper` (Playwright)
@@ -301,14 +321,14 @@ FRONTEND/src/
    - Dynamic: 10s carga, 5s selector, domcontentloaded, máx 3 páginas
    - Wayback: 15s HTTP
 
-4. Cache en BD (`scraping_cache`) con TTL configurable por tienda
+4. Cache persistente en PostgreSQL (`scraping_cache`) por término, tienda y TTL. Se consulta antes de scrapear; una tienda favorita se ordena primero.
 
 ---
 
 ## Seguridad
 
 - JWT con expiración configurable
-- Passwords con bcrypt (cost factor configurable)
+- Las contraseñas aún requieren la migración pendiente a bcrypt; no debe considerarse el despliegue apto para producción hasta completarla.
 - Roles: `admin` (acceso total) y `user` (solo sus cotizaciones)
 - CORS restringido a orígenes configurados
 - Endpoints de admin protegidos con `require_admin` dependency

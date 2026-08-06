@@ -1,8 +1,9 @@
 import asyncio
 import logging
+import unicodedata
 from datetime import datetime, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.producto import Producto
@@ -129,7 +130,7 @@ async def _scrape_tienda(tienda: Tienda, termino: str) -> list[dict]:
         return []
 
 
-async def buscar_por_termino(db: AsyncSession, termino: str) -> dict:
+async def _buscar_por_termino_memoria(db: AsyncSession, termino: str) -> dict:
     """Busca un término libre en todas las tiendas activas.
 
     Usa cache en memoria (30 min TTL) y scraping paralelo con timeout.
@@ -170,3 +171,77 @@ async def buscar_por_termino(db: AsyncSession, termino: str) -> dict:
 def limpiar_cache_termino():
     """Limpia el cache en memoria de búsquedas por término."""
     _cache_termino.clear()
+
+
+async def buscar_por_termino(db: AsyncSession, termino: str) -> dict:
+    """Busca primero en la caché persistente y refresca solo tiendas vencidas."""
+    clave = unicodedata.normalize("NFKD", termino.lower().strip())
+    clave = "".join(c for c in clave if not unicodedata.combining(c))
+    result = await db.execute(
+        select(Tienda).where(Tienda.activa.is_(True)).order_by(Tienda.es_favorita.desc(), Tienda.nombre)
+    )
+    tiendas = result.scalars().all()
+    result = await db.execute(
+        select(ScrapingCache).where(ScrapingCache.termino_normalizado == clave)
+    )
+    cache_por_tienda: dict[str, list[ScrapingCache]] = {}
+    for entrada in result.scalars().all():
+        cache_por_tienda.setdefault(entrada.tienda, []).append(entrada)
+
+    ahora = datetime.now()
+    opciones_por_tienda: dict[str, list[dict]] = {}
+    pendientes: list[Tienda] = []
+    for tienda in tiendas:
+        entradas = cache_por_tienda.get(tienda.nombre, [])
+        vigente = bool(entradas) and all(
+            entrada.fecha_consulta and entrada.fecha_consulta + timedelta(hours=tienda.ttl_horas) > ahora
+            for entrada in entradas
+        )
+        if not vigente:
+            pendientes.append(tienda)
+            continue
+        opciones_por_tienda[tienda.nombre] = [
+            {
+                "tienda": tienda.nombre,
+                "nombre_producto": entrada.nombre_producto,
+                "precio_base": float(entrada.precio) if entrada.precio is not None else None,
+                "disponible": bool(entrada.disponible),
+                "url": entrada.url_producto,
+                "variantes": entrada.variantes or [],
+                "es_favorita": tienda.es_favorita,
+            }
+            for entrada in entradas if entrada.nombre_producto
+        ]
+
+    resultados = await asyncio.gather(*[_scrape_tienda(tienda, termino) for tienda in pendientes])
+    for tienda, items in zip(pendientes, resultados):
+        await db.execute(delete(ScrapingCache).where(
+            ScrapingCache.tienda == tienda.nombre,
+            ScrapingCache.termino_normalizado == clave,
+        ))
+        opciones_por_tienda[tienda.nombre] = []
+        for item in items:
+            nombre = item.get("nombre_producto") or termino
+            db.add(ScrapingCache(
+                producto_id=None, tienda=tienda.nombre, termino_normalizado=clave,
+                nombre_producto=nombre, precio=item.get("precio"),
+                disponible=item.get("disponible", False), url_producto=item.get("url"),
+                variantes=item.get("variantes", []), fecha_consulta=ahora, ttl_horas=tienda.ttl_horas,
+            ))
+            opciones_por_tienda[tienda.nombre].append({
+                "tienda": tienda.nombre, "nombre_producto": nombre,
+                "precio_base": float(item["precio"]) if item.get("precio") is not None else None,
+                "disponible": item.get("disponible", False), "url": item.get("url"),
+                "variantes": item.get("variantes", []), "es_favorita": tienda.es_favorita,
+            })
+        if not items:
+            db.add(ScrapingCache(
+                producto_id=None, tienda=tienda.nombre, termino_normalizado=clave,
+                nombre_producto=None, precio=None, disponible=False, url_producto=None,
+                variantes=[], fecha_consulta=ahora, ttl_horas=tienda.ttl_horas,
+            ))
+    if pendientes:
+        await db.commit()
+
+    opciones = [op for tienda in tiendas for op in opciones_por_tienda.get(tienda.nombre, [])]
+    return {"termino": termino, "opciones": opciones, "fuente": "cache" if not pendientes else "web_scraping"}

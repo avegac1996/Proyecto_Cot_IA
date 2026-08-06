@@ -2,6 +2,7 @@
 
 from decimal import Decimal
 
+from cryptography.fernet import Fernet, InvalidToken
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -155,8 +156,41 @@ async def actualizar_opciones_envio(db: AsyncSession, opciones: list[dict]) -> l
 
 # --- API Key de Gemini ---
 
+GEMINI_KEY_PREFIX = "enc:v1:"
+
+
+class GeminiKeyStorageError(RuntimeError):
+    """La clave de Gemini almacenada no se puede usar de forma segura."""
+
+
+def _get_gemini_fernet() -> Fernet:
+    """Obtiene el cifrador con una clave maestra que nunca se guarda en la BD."""
+    if not settings.GEMINI_KEY_ENCRYPTION_KEY:
+        raise GeminiKeyStorageError(
+            "Falta GEMINI_KEY_ENCRYPTION_KEY para usar una clave Gemini almacenada en la base de datos"
+        )
+    try:
+        return Fernet(settings.GEMINI_KEY_ENCRYPTION_KEY.encode())
+    except (ValueError, TypeError) as exc:
+        raise GeminiKeyStorageError("GEMINI_KEY_ENCRYPTION_KEY no tiene formato Fernet válido") from exc
+
+
+def _encrypt_gemini_key(value: str) -> str:
+    return GEMINI_KEY_PREFIX + _get_gemini_fernet().encrypt(value.encode()).decode()
+
+
+def _decrypt_gemini_key(value: str) -> str:
+    if not value.startswith(GEMINI_KEY_PREFIX):
+        raise GeminiKeyStorageError(
+            "La clave Gemini existente no está cifrada. Configure GEMINI_KEY_ENCRYPTION_KEY y guárdela nuevamente"
+        )
+    try:
+        return _get_gemini_fernet().decrypt(value[len(GEMINI_KEY_PREFIX):].encode()).decode()
+    except InvalidToken as exc:
+        raise GeminiKeyStorageError("No se pudo descifrar la clave Gemini almacenada") from exc
+
 async def obtener_gemini_api_key(db: AsyncSession) -> str:
-    """Lee la API key de Gemini desde BD. Fallback a settings si no existe."""
+    """Obtiene la clave efectiva: BD cifrada primero y entorno como respaldo."""
     result = await db.execute(
         select(ConfiguracionNegocio).where(
             ConfiguracionNegocio.clave == "gemini_api_key"
@@ -164,25 +198,26 @@ async def obtener_gemini_api_key(db: AsyncSession) -> str:
     )
     config = result.scalar_one_or_none()
     if config and config.valor:
-        return config.valor
+        return _decrypt_gemini_key(config.valor)
     return settings.GEMINI_API_KEY
 
 
 async def actualizar_gemini_api_key(db: AsyncSession, valor: str) -> str:
-    """Actualiza o crea la API key de Gemini en BD."""
+    """Cifra y almacena la API key de Gemini en la BD."""
     result = await db.execute(
         select(ConfiguracionNegocio).where(
             ConfiguracionNegocio.clave == "gemini_api_key"
         )
     )
     config = result.scalar_one_or_none()
+    valor_cifrado = _encrypt_gemini_key(valor)
     if config:
-        config.valor = valor
+        config.valor = valor_cifrado
     else:
         config = ConfiguracionNegocio(
             clave="gemini_api_key",
-            valor=valor,
-            descripcion="API key para Google Gemini (Vision y Chat)",
+            valor=valor_cifrado,
+            descripcion="API key cifrada para Google Gemini (Vision y Chat)",
         )
         db.add(config)
     await db.commit()

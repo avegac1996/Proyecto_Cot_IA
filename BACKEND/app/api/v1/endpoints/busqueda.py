@@ -2,9 +2,10 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 import asyncio
+import re
+import unicodedata
 
 from app.api.deps import get_current_user
-from app.core.config import settings
 from app.core.database import get_db
 from app.models.usuario import Usuario
 from app.services.gemini.vision import identificar_componentes_imagen
@@ -12,9 +13,30 @@ from app.services.gemini.chat import preguntar_agente
 from app.services.ingesta.filtro import extraer_componentes
 from app.services.scraping.busqueda import buscar_por_termino_priorizado
 from app.services.scraping.engine import buscar_por_termino, limpiar_cache_termino
-from app.services.configuracion import obtener_margen, obtener_tienda_propia
+from app.services.configuracion import (
+    GeminiKeyStorageError,
+    obtener_gemini_api_key,
+    obtener_margen,
+    obtener_tienda_propia,
+)
 
 router = APIRouter(prefix="/buscar", tags=["busqueda"])
+
+
+async def _obtener_gemini_key_o_503(db: AsyncSession) -> str:
+    try:
+        api_key = await obtener_gemini_api_key(db)
+    except GeminiKeyStorageError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={"code": "GEMINI_KEY_STORAGE_ERROR", "message": str(exc)},
+        ) from exc
+    if not api_key:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={"code": "GEMINI_NOT_CONFIGURED", "message": "Gemini API no configurada"},
+        )
+    return api_key
 
 
 class BusquedaRequest(BaseModel):
@@ -30,6 +52,7 @@ class OpcionProducto(BaseModel):
     disponible: bool
     url: str | None
     es_propio: bool
+    es_favorita: bool = False
     variantes: list[str] = []
 
 
@@ -38,12 +61,18 @@ class SugerenciaResponse(BaseModel):
     razon: str
 
 
+class ConfirmacionResponse(BaseModel):
+    candidato: str | None = None
+    pregunta: str
+
+
 class ResultadoComponente(BaseModel):
     termino: str
     cantidad: int
     encontrado_propia: bool
     opciones: list[OpcionProducto]
     sugerencia: SugerenciaResponse | None = None
+    confirmacion: ConfirmacionResponse | None = None
 
 
 class BusquedaResponse(BaseModel):
@@ -57,6 +86,21 @@ class AlternativaRequest(BaseModel):
 
 class AlternativaResponse(BaseModel):
     alternativas: list[OpcionProducto]
+
+
+def _extraer_termino_sugerido(respuesta: str, termino_original: str) -> str | None:
+    """Acepta únicamente la salida estructurada de Gemini para un sinónimo."""
+    match = re.search(r"TERMINO\s*:\s*(.+)", respuesta, re.IGNORECASE)
+    if not match:
+        return None
+    termino = match.group(1).strip().strip("`\"'")
+    if not termino or len(termino) > 160 or "\n" in termino:
+        return None
+    original = unicodedata.normalize("NFKD", termino_original.lower())
+    original = "".join(c for c in original if not unicodedata.combining(c)).strip()
+    normalizado = unicodedata.normalize("NFKD", termino.lower())
+    normalizado = "".join(c for c in normalizado if not unicodedata.combining(c)).strip()
+    return termino if normalizado != original else None
 
 
 @router.post("", response_model=BusquedaResponse)
@@ -73,6 +117,14 @@ async def buscar_componentes(
     3. Retorna opciones por componente, AV Electronics primero (sin margen)
     """
     componentes = extraer_componentes(body.texto)
+    componentes_unicos: dict[str, dict] = {}
+    for componente in componentes:
+        clave = unicodedata.normalize("NFKD", componente["termino"].lower().strip())
+        clave = "".join(c for c in clave if not unicodedata.combining(c))
+        if clave in componentes_unicos:
+            componentes_unicos[clave]["cantidad"] += componente["cantidad"]
+        else:
+            componentes_unicos[clave] = componente.copy()
 
     # Limpiar cache en memoria para que cada búsqueda traiga resultados frescos
     limpiar_cache_termino()
@@ -80,17 +132,43 @@ async def buscar_componentes(
     # Sin deduplicación global: cada término busca independientemente.
     # El filtrado por relevancia se encarga de que cada producto aparezca
     # bajo el término más adecuado (ej: "LED Verde" bajo "led verde", no "led rojo").
-    from app.services.scraping.sugerencias import sugerir_termino
-
     resultados = []
-    for comp in componentes:
+    for comp in componentes_unicos.values():
         resultado = await buscar_por_termino_priorizado(
             db, comp["termino"], comp["cantidad"],
             termino_base=comp.get("termino_base"),
             descriptores=comp.get("descriptores", []),
         )
-        if not resultado.get("opciones") and not resultado.get("sugerencia"):
-            resultado["sugerencia"] = sugerir_termino(comp["termino"])
+        if not resultado.get("opciones"):
+            try:
+                api_key = await obtener_gemini_api_key(db)
+                if api_key:
+                    respuesta_ia = await preguntar_agente(
+                        pregunta=(
+                            "Propón un único término comercial o sinónimo para buscar el mismo componente "
+                            f"que el usuario escribió: '{comp['termino']}'. Conserva obligatoriamente valor, "
+                            "unidad, voltaje, modelo y encapsulado. No propongas un producto diferente ni una "
+                            "alternativa. Responde solo `TERMINO: <consulta>`; si no estás seguro responde `TERMINO:`."
+                        ),
+                        resultados=[{"termino": comp["termino"], "cantidad": comp["cantidad"], "opciones": []}],
+                        api_key=api_key,
+                    )
+                    candidato = _extraer_termino_sugerido(respuesta_ia, comp["termino"])
+                    if candidato:
+                        resultado["confirmacion"] = {
+                            "candidato": candidato,
+                            "pregunta": f"No encontré una coincidencia exacta. ¿Quieres buscar '{candidato}'?",
+                        }
+            except (GeminiKeyStorageError, ValueError):
+                pass
+            if "confirmacion" not in resultado:
+                resultado["confirmacion"] = {
+                    "candidato": None,
+                    "pregunta": (
+                        f"No encontré '{comp['termino']}' con suficiente precisión. "
+                        "¿Puedes confirmar el modelo o especificación?"
+                    ),
+                }
         resultados.append(resultado)
 
     return BusquedaResponse(resultados=resultados)
@@ -202,16 +280,13 @@ class ImagenResponse(BaseModel):
 @router.post("/imagen", response_model=ImagenResponse)
 async def identificar_imagen(
     file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
     user: Usuario = Depends(get_current_user),
 ):
     """Recibe una imagen, la envía a Google Gemini Vision y devuelve los
     componentes electrónicos identificados en formato de lista."""
 
-    if not settings.GEMINI_API_KEY:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail={"code": "GEMINI_NOT_CONFIGURED", "message": "Gemini API no configurada"},
-        )
+    api_key = await _obtener_gemini_key_o_503(db)
 
     if not file.content_type or not file.content_type.startswith("image/"):
         raise HTTPException(
@@ -227,7 +302,7 @@ async def identificar_imagen(
         )
 
     try:
-        texto = await identificar_componentes_imagen(image_bytes, file.content_type)
+        texto = await identificar_componentes_imagen(image_bytes, file.content_type, api_key)
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
@@ -252,16 +327,13 @@ class PreguntaResponse(BaseModel):
 @router.post("/preguntar", response_model=PreguntaResponse)
 async def preguntar(
     body: PreguntaRequest,
+    db: AsyncSession = Depends(get_db),
     user: Usuario = Depends(get_current_user),
 ):
     """Permite al usuario hacer preguntas sobre los resultados de búsqueda
     usando Google Gemini como asistente experto en electrónica."""
 
-    if not settings.GEMINI_API_KEY:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail={"code": "GEMINI_NOT_CONFIGURED", "message": "Gemini API no configurada"},
-        )
+    api_key = await _obtener_gemini_key_o_503(db)
 
     if not body.pregunta.strip():
         raise HTTPException(
@@ -273,6 +345,7 @@ async def preguntar(
         respuesta = await preguntar_agente(
             pregunta=body.pregunta,
             resultados=body.resultados,
+            api_key=api_key,
             historial=body.historial,
         )
     except ValueError as exc:

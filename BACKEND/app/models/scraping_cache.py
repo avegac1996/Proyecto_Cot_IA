@@ -2,6 +2,7 @@ from datetime import datetime
 from decimal import Decimal
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, Numeric, String, Text, func
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
@@ -14,8 +15,11 @@ class ScrapingCache(Base):
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    producto_id: Mapped[int] = mapped_column(ForeignKey("productos.id"), nullable=False)
+    producto_id: Mapped[int | None] = mapped_column(ForeignKey("productos.id"), nullable=True)
     tienda: Mapped[str] = mapped_column(String(100), nullable=False)
+    termino_normalizado: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    nombre_producto: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    variantes: Mapped[list | None] = mapped_column(JSONB, nullable=True)
     precio: Mapped[Decimal | None] = mapped_column(Numeric(10, 2), nullable=True)
     disponible: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     url_producto: Mapped[str | None] = mapped_column(Text, nullable=True)

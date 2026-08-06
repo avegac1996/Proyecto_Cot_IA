@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { Search, Loader2, AlertCircle, Send, Mic, Image as ImageIcon, FileText, Type, Info, ArrowLeft, Sparkles, RotateCw } from 'lucide-react'
-import { buscarComponentes, crearCotizacionDesdeCarrito, getCotizacionById } from './services/busquedaService'
+import { agregarContextoCotizacion, buscarComponentes, crearBorrador, crearCotizacionDesdeCarrito, getCotizacionById } from './services/busquedaService'
 import TarjetaProducto from './components/TarjetaProducto'
 import CarritoPreview from './components/CarritoPreview'
 import VoiceInput from './components/VoiceInput'
@@ -28,8 +28,11 @@ export default function CargaPage() {
   const [busquedaRealizada, setBusquedaRealizada] = useState(false)
   const [terminoBusqueda, setTerminoBusqueda] = useState('')
   const [resetKey, setResetKey] = useState(0)
+  const [borradorId, setBorradorId] = useState<number | null>(null)
   const resultadosRef = useRef<HTMLDivElement>(null)
+  const busquedaActivaRef = useRef(0)
   const editandoCotizacionId = (location.state as { cotizacionId?: number } | null)?.cotizacionId ?? null
+  const cotizacionActivaId = editandoCotizacionId ?? borradorId
 
   useEffect(() => {
     if (resultados.length > 0 && resultadosRef.current) {
@@ -87,31 +90,51 @@ export default function CargaPage() {
   }
 
   const handleRecargar = () => {
+    busquedaActivaRef.current += 1
     setResultados([])
     setCarrito([])
     setBusquedaRealizada(false)
     setTerminoBusqueda('')
     setMensaje('')
     setError(null)
+    setBorradorId(null)
     setResetKey(k => k + 1)
   }
 
   const handleBuscarWith = async (texto: string) => {
     const trimmed = texto.trim()
     if (!trimmed) return
+    // Una cotización nueva debe partir de su propia lista reconocida. Al editar
+    // una existente se preserva el carrito para poder agregar nuevos ítems.
+    if (!cotizacionActivaId) {
+      setResultados([])
+      setCarrito([])
+      setDatosCliente(null)
+    }
+    const busquedaId = ++busquedaActivaRef.current
     setIsLoading(true)
     setError(null)
     setBusquedaRealizada(true)
     setTerminoBusqueda(trimmed)
     try {
       const data = await buscarComponentes(trimmed)
-      setResultados(data.resultados)
+      if (busquedaId !== busquedaActivaRef.current) return
+      if (cotizacionActivaId) {
+        await agregarContextoCotizacion(cotizacionActivaId, data.resultados)
+        setResultados((prev) => [...prev, ...data.resultados])
+      } else {
+        const borrador = await crearBorrador(data.resultados)
+        if (busquedaId !== busquedaActivaRef.current) return
+        setBorradorId(borrador.cotizacion_id)
+        setResultados(data.resultados)
+      }
       guardarHistorialBusqueda(trimmed, data.resultados.length)
     } catch (err) {
+      if (busquedaId !== busquedaActivaRef.current) return
       const e = err as { response?: { data?: { detail?: { message?: string } } }; message?: string }
       setError(e.response?.data?.detail?.message || e.message || 'Error al buscar componentes')
     } finally {
-      setIsLoading(false)
+      if (busquedaId === busquedaActivaRef.current) setIsLoading(false)
     }
   }
 
@@ -158,7 +181,7 @@ export default function CargaPage() {
     setIsLoading(true)
     setError(null)
     try {
-      const cotizacion = await crearCotizacionDesdeCarrito(carrito, editandoCotizacionId ?? undefined, cliente, envio)
+      const cotizacion = await crearCotizacionDesdeCarrito(carrito, cotizacionActivaId ?? undefined, cliente, envio)
       navigate('/historial', { state: { cotizacionCreada: cotizacion.cotizacion_id } })
     } catch (err) {
       const e = err as { response?: { data?: { detail?: unknown } }; message?: string }
@@ -469,7 +492,7 @@ export default function CargaPage() {
                     seleccionadas={carrito
                       .filter((item) => item.termino.startsWith(`${resultado.termino} - `))
                       .map((item) => item.opcion_seleccionada)}
-                    onBuscarSugerencia={handleBuscarSugerencia}
+                    onConfirmarProducto={handleBuscarSugerencia}
                   />
                 </div>
               ))}

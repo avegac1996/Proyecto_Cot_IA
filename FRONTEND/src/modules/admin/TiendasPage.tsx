@@ -12,6 +12,7 @@ import {
   ShieldAlert,
   ShieldCheck,
   ShieldX,
+  Star,
 } from 'lucide-react'
 import {
   getTiendas,
@@ -41,6 +42,7 @@ const EMPTY_TIENDA = {
   url_base: '',
   usa_javascript: false,
   activa: true,
+  es_favorita: false,
   ttl_horas: 24,
   selectores: { ...EMPTY_SELECTORES },
 }
@@ -87,6 +89,7 @@ export default function TiendasPage() {
       url_base: t.url_base,
       usa_javascript: t.usa_javascript,
       activa: t.activa,
+      es_favorita: t.es_favorita,
       ttl_horas: t.ttl_horas,
       selectores: { ...EMPTY_SELECTORES, ...t.selectores },
     })
@@ -103,6 +106,18 @@ export default function TiendasPage() {
     } catch (err) {
       const e = err as { response?: { data?: { detail?: { message?: string } } }; message?: string }
       setError(e.response?.data?.detail?.message || e.message || 'Error al eliminar')
+    }
+  }
+
+  const handleMarcarFavorita = async (tienda: Tienda) => {
+    if (tienda.es_favorita) return
+    setError(null)
+    try {
+      await updateTienda(tienda.id, { es_favorita: true })
+      await cargarTiendas()
+    } catch (err) {
+      const e = err as { response?: { data?: { detail?: { message?: string } } }; message?: string }
+      setError(e.response?.data?.detail?.message || e.message || 'Error al seleccionar la tienda favorita')
     }
   }
 
@@ -189,6 +204,14 @@ export default function TiendasPage() {
             </p>
           </div>
         </div>
+        <button
+          onClick={handleNueva}
+          className="px-3 py-2 rounded-lg text-sm font-medium text-white flex items-center gap-2"
+          style={{ backgroundColor: 'var(--color-primary)' }}
+        >
+          <Plus className="w-4 h-4" />
+          Nueva tienda
+        </button>
       </div>
 
       {error && (
@@ -232,6 +255,11 @@ export default function TiendasPage() {
                       JS
                     </span>
                   )}
+                  {t.es_favorita && (
+                    <span className="text-xs px-2 py-0.5 rounded-full" style={{ backgroundColor: '#E0E7FF', color: '#3730A3' }}>
+                      Favorita
+                    </span>
+                  )}
                   {t.selectores.use_wayback && (
                     <span
                       className="text-xs px-2 py-0.5 rounded-full"
@@ -261,6 +289,15 @@ export default function TiendasPage() {
               </div>
             </div>
             <div className="flex items-center gap-2">
+              <button
+                onClick={() => handleMarcarFavorita(t)}
+                className="p-2 rounded-lg transition-colors hover:opacity-80 disabled:cursor-default"
+                style={{ color: t.es_favorita ? '#D97706' : 'var(--color-text-muted)' }}
+                title={t.es_favorita ? 'Tienda favorita' : 'Marcar como tienda favorita'}
+                disabled={t.es_favorita}
+              >
+                <Star className="w-4 h-4" fill={t.es_favorita ? 'currentColor' : 'none'} />
+              </button>
               <button
                 onClick={() => handleEditar(t)}
                 className="p-2 rounded-lg transition-colors hover:opacity-80"
@@ -334,7 +371,7 @@ export default function TiendasPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-4 gap-4">
               <label className="flex items-center gap-2 text-sm" style={{ color: 'var(--color-text)' }}>
                 <input
                   type="checkbox"
@@ -350,6 +387,14 @@ export default function TiendasPage() {
                   onChange={(e) => setFormData({ ...formData, activa: e.target.checked })}
                 />
                 Activa
+              </label>
+              <label className="flex items-center gap-2 text-sm" style={{ color: 'var(--color-text)' }}>
+                <input
+                  type="checkbox"
+                  checked={formData.es_favorita}
+                  onChange={(e) => setFormData({ ...formData, es_favorita: e.target.checked })}
+                />
+                Favorita
               </label>
               <div>
                 <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-text)' }}>

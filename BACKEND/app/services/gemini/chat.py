@@ -4,8 +4,6 @@ import logging
 
 import httpx
 
-from app.services.configuracion import obtener_gemini_api_key
-
 logger = logging.getLogger(__name__)
 
 GEMINI_MODEL = "gemini-flash-lite-latest"
@@ -65,6 +63,7 @@ def _build_context(resultados: list[dict]) -> str:
 async def preguntar_agente(
     pregunta: str,
     resultados: list[dict],
+    api_key: str,
     historial: list[dict] | None = None,
 ) -> str:
     """Envía una pregunta a Gemini con el contexto de los resultados.
@@ -77,11 +76,6 @@ async def preguntar_agente(
     Returns:
         Respuesta del agente.
     """
-    from app.core.database import async_session
-
-    async with async_session() as db:
-        api_key = await obtener_gemini_api_key(db)
-
     if not api_key:
         raise ValueError("GEMINI_API_KEY no configurada")
 

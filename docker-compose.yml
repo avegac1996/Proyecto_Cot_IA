@@ -15,7 +15,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-cotia_user}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-cotia_user} -d ${POSTGRES_DB:-cotia}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -53,11 +53,11 @@ services:
         condition: service_healthy
     volumes:
       - ./BACKEND/app:/app/app
-    command: >
-      uvicorn app.main:app
-      --host 0.0.0.0
-      --port 8000
-      --reload
+    command:
+      - sh
+      - -c
+      - >
+        PYTHONPATH=/app alembic upgrade head && exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
   # ─── Frontend (Vite dev server) ───
   frontend:

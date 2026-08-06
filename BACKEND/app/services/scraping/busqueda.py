@@ -8,7 +8,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services.configuracion import obtener_margen, obtener_tienda_propia
 from app.services.scraping.engine import buscar_por_termino
-from app.services.scraping.sugerencias import sugerir_termino
 
 logger = logging.getLogger(__name__)
 
@@ -156,6 +155,9 @@ async def buscar_por_termino_priorizado(
         opciones_raw = resultado_raw.get("opciones", [])
         opciones_filtradas = _filtrar_y_ordenar_por_relevancia(opciones_raw, descriptores or [], base_para_filtrar)
 
+    # Probar aliases que conservan el mismo artículo antes de declarar que no
+    # hay resultados. Ej.: "broche porta pila" -> "portapilas", nunca
+    # "batería", porque sería un producto diferente.
     opciones_raw = opciones_filtradas
 
     opciones_propias = []
@@ -175,6 +177,7 @@ async def buscar_por_termino_priorizado(
                 "disponible": op["disponible"],
                 "url": op["url"],
                 "es_propio": True,
+                "es_favorita": op.get("es_favorita", False),
                 "variantes": variantes,
             })
         else:
@@ -188,6 +191,7 @@ async def buscar_por_termino_priorizado(
                 "disponible": op["disponible"],
                 "url": op["url"],
                 "es_propio": False,
+                "es_favorita": op.get("es_favorita", False),
                 "variantes": variantes,
             })
 
@@ -200,16 +204,13 @@ async def buscar_por_termino_priorizado(
         pass
 
     todas_opciones = opciones_propias + opciones_externas
-
-    # Si no hay resultados, generar sugerencia
-    sugerencia = None
-    if not todas_opciones:
-        sugerencia = sugerir_termino(termino)
+    # La favorita siempre encabeza las opciones, incluso si hay otra más barata.
+    todas_opciones.sort(key=lambda opcion: not opcion["es_favorita"])
 
     return {
         "termino": termino,
         "cantidad": cantidad,
         "encontrado_propia": len(opciones_propias) > 0,
         "opciones": todas_opciones,
-        "sugerencia": sugerencia,
+        "sugerencia": None,
     }

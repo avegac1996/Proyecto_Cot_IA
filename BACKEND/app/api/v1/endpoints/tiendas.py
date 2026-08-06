@@ -7,7 +7,7 @@ import httpx
 from bs4 import BeautifulSoup
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import require_admin
@@ -53,6 +53,7 @@ class TiendaCreate(BaseModel):
     url_base: str
     usa_javascript: bool = False
     activa: bool = True
+    es_favorita: bool = False
     ttl_horas: int = 24
     selectores: SelectorSchema = SelectorSchema()
 
@@ -62,6 +63,7 @@ class TiendaUpdate(BaseModel):
     url_base: str | None = None
     usa_javascript: bool | None = None
     activa: bool | None = None
+    es_favorita: bool | None = None
     ttl_horas: int | None = None
     selectores: SelectorSchema | None = None
 
@@ -72,6 +74,7 @@ class TiendaResponse(BaseModel):
     url_base: str
     usa_javascript: bool
     activa: bool
+    es_favorita: bool
     ttl_horas: int
     selectores: dict
 
@@ -114,11 +117,15 @@ async def crear_tienda(
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=400, detail={"code": "DUPLICATE", "message": "Ya existe una tienda con ese nombre"})
 
+    if body.es_favorita:
+        await db.execute(update(Tienda).values(es_favorita=False))
+
     tienda = Tienda(
         nombre=body.nombre,
         url_base=body.url_base,
         usa_javascript=body.usa_javascript,
         activa=body.activa,
+        es_favorita=body.es_favorita,
         ttl_horas=body.ttl_horas,
         selectores=body.selectores.model_dump(),
     )
@@ -148,6 +155,11 @@ async def actualizar_tienda(
         tienda.usa_javascript = body.usa_javascript
     if body.activa is not None:
         tienda.activa = body.activa
+    if body.es_favorita is True:
+        await db.execute(update(Tienda).where(Tienda.id != tienda_id).values(es_favorita=False))
+        tienda.es_favorita = True
+    elif body.es_favorita is False:
+        tienda.es_favorita = False
     if body.ttl_horas is not None:
         tienda.ttl_horas = body.ttl_horas
     if body.selectores is not None:

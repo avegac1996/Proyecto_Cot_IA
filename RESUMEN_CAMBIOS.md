@@ -1,5 +1,7 @@
 # Resumen de Cambios Realizados — CotIA
 
+> **Nota de mantenimiento (2026-08):** las secciones 1–9 registran una fase anterior del proyecto. La sección **10. Estado actual** consolida los cambios posteriores y prevalece ante cualquier diferencia. La arquitectura operativa se mantiene en [`ARQUITECTURA.md`](ARQUITECTURA.md).
+
 ---
 
 ## 1. Datos del Cliente en Cotizaciones
@@ -142,6 +144,35 @@
   - pdfjs-dist para PDF
   - mammoth para DOCX
   - xlsx para Excel
+
+---
+
+## 10. Estado actual: seguridad, cotización, scraping e ingesta
+
+### Autorización y ciclo de cotización
+- Los usuarios normales solo consultan y modifican sus propias cotizaciones; el administrador puede operar sobre todas.
+- La misma validación de propiedad se aplica al detalle, PDF, Excel, envío, ítems, finalización, eliminación y selección de proveedor.
+- Una nueva búsqueda crea un `borrador` persistente. Se pueden agregar más componentes a su contexto antes de generar.
+- El historial excluye borradores e intentos sin datos mínimos del cliente. Al generar se requiere nombre, correo y celular.
+
+### Base de datos y despliegue
+- El esquema se gestiona exclusivamente con Alembic. El backend ejecuta `alembic upgrade head` al iniciar.
+- Docker Compose operativo despliega PostgreSQL, pgAdmin, backend y frontend. Redis/Celery no forman parte del sistema actual; el refresco de scraping se realiza bajo demanda mediante TTL.
+
+### Tiendas y caché de scraping
+- `tiendas.es_favorita` se almacena en PostgreSQL. Solo una tienda puede ser favorita y se prioriza al buscar.
+- `scraping_cache` conserva término normalizado, producto, precio, disponibilidad, URL, variantes y TTL por tienda. Antes de scrapear se consulta esta caché.
+- La interfaz muestra primero la favorita y permite desplegar productos de las otras tiendas cuando existen resultados.
+- Un CAPTCHA no puede ni debe ser evadido por el scraper dinámico; una tienda bloqueada no producirá productos externos hasta contar con una fuente autorizada o alternativa.
+
+### Gemini e ingesta
+- La clave efectiva de Gemini se obtiene de la BD cifrada con Fernet; si no existe, se usa la variable de entorno. `GEMINI_KEY_ENCRYPTION_KEY` nunca se guarda en BD.
+- Gemini Vision entrega listas estructuradas. El parser conserva cantidad, categoría y especificaciones.
+- Cuando no hay una coincidencia exacta, Gemini propone un sinónimo comercial que conserva las especificaciones; el usuario debe confirmarlo antes de realizar la nueva búsqueda. No se usan sustituciones automáticas de producto.
+
+### Validación pendiente
+- La migración de contraseñas a bcrypt sigue pendiente; actualmente no debe considerarse un despliegue de producción.
+- La suite completa de pruebas aún tiene fallos heredados en autenticación, exportación PDF y formato de precios. Las pruebas específicas del parser de ingesta están cubiertas y aprobadas.
 
 ---
 

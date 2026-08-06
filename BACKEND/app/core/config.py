@@ -27,6 +27,9 @@ class Settings(BaseSettings):
 
     # Gemini Vision API
     GEMINI_API_KEY: str = ""
+    # Clave Fernet para cifrar la API key de Gemini almacenada en la BD.
+    # Debe mantenerse fuera de la BD y ser distinta al JWT_SECRET_KEY.
+    GEMINI_KEY_ENCRYPTION_KEY: str = ""
 
     @property
     def cors_origins_list(self) -> list[str]:

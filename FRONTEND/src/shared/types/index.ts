@@ -106,6 +106,7 @@ export interface OpcionProducto {
   disponible: boolean
   url: string | null
   es_propio: boolean
+  es_favorita?: boolean
   variantes?: string[]
 }
 
@@ -114,12 +115,18 @@ export interface Sugerencia {
   razon: string
 }
 
+export interface ConfirmacionProducto {
+  candidato: string | null
+  pregunta: string
+}
+
 export interface ResultadoComponente {
   termino: string
   cantidad: number
   encontrado_propia: boolean
   opciones: OpcionProducto[]
   sugerencia: Sugerencia | null
+  confirmacion?: ConfirmacionProducto | null
 }
 
 export interface BusquedaResponse {

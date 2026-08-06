@@ -2,6 +2,8 @@
 
 ---
 
+> **Estado del documento:** este archivo conserva la arquitectura objetivo y propuestas futuras. La arquitectura operativa y el despliegue vigente están documentados en [`../ARQUITECTURA.md`](../ARQUITECTURA.md). Redis, Celery y las colas programadas **no están implementados ni se despliegan actualmente**; el refresco de scraping vigente usa PostgreSQL y TTL por tienda bajo demanda.
+
 ## Tabla de Contenidos
 
 1. [Visión del Proyecto](#1-visión-del-proyecto)

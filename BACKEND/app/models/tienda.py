@@ -13,5 +13,6 @@ class Tienda(Base):
     url_base: Mapped[str] = mapped_column(Text, nullable=False)
     selectores: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
     activa: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    es_favorita: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     usa_javascript: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     ttl_horas: Mapped[int] = mapped_column(Integer, default=24, nullable=False)

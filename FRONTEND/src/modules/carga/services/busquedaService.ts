@@ -43,6 +43,20 @@ export async function getCotizacionById(cotizacionId: number): Promise<Cotizacio
   return data
 }
 
+export async function crearBorrador(componentes: ResultadoComponente[]): Promise<Cotizacion> {
+  const { data } = await api.post<Cotizacion>('/cotizacion/borrador', {
+    componentes: componentes.map(({ termino, cantidad }) => ({ termino, cantidad })),
+  })
+  return data
+}
+
+export async function agregarContextoCotizacion(cotizacionId: number, componentes: ResultadoComponente[]): Promise<Cotizacion> {
+  const { data } = await api.post<Cotizacion>(`/cotizacion/${cotizacionId}/contexto`, {
+    componentes: componentes.map(({ termino, cantidad }) => ({ termino, cantidad })),
+  })
+  return data
+}
+
 export async function buscarAlternativas(
   nombreProducto: string,
   tiendaExcluir: string
@@ -89,9 +103,9 @@ export async function revelarGeminiApiKey(password: string): Promise<string> {
   return data.api_key
 }
 
-export async function actualizarGeminiApiKey(apiKey: string): Promise<string> {
-  const { data } = await api.put<{ api_key: string }>('/configuracion/gemini-key', { api_key: apiKey })
-  return data.api_key
+export async function actualizarGeminiApiKey(apiKey: string): Promise<{ api_key: string; has_key: boolean }> {
+  const { data } = await api.put<{ api_key: string; has_key: boolean }>('/configuracion/gemini-key', { api_key: apiKey })
+  return data
 }
 
 export async function crearCotizacionDesdeCarrito(
