@@ -108,6 +108,7 @@ export interface OpcionProducto {
   es_propio: boolean
   variantes?: string[]
   agotado?: boolean
+  similares?: boolean
 }
 
 export interface Sugerencia {
@@ -121,6 +122,7 @@ export interface ResultadoComponente {
   encontrado_propia: boolean
   opciones: OpcionProducto[]
   sugerencia: Sugerencia | null
+  no_encontrado?: boolean
 }
 
 export interface BusquedaResponse {

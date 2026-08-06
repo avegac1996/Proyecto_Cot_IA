@@ -32,6 +32,7 @@ class OpcionProducto(BaseModel):
     es_propio: bool
     variantes: list[str] = []
     agotado: bool = False
+    similares: bool = False
 
 
 class SugerenciaResponse(BaseModel):
@@ -45,6 +46,7 @@ class ResultadoComponente(BaseModel):
     encontrado_propia: bool
     opciones: list[OpcionProducto]
     sugerencia: SugerenciaResponse | None = None
+    no_encontrado: bool = False
 
 
 class BusquedaResponse(BaseModel):

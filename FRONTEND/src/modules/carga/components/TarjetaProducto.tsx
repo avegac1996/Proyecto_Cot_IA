@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Store, Check, X, BadgeCheck, AlertTriangle, ChevronDown, ChevronUp, ChevronRight, Loader2, Palette, Sparkles } from 'lucide-react'
+import { Store, Check, X, BadgeCheck, AlertTriangle, ChevronDown, ChevronUp, ChevronRight, Loader2, Palette, Sparkles, SearchX } from 'lucide-react'
 import type { ResultadoComponente, OpcionProducto } from '@/shared/types'
 import { buscarAlternativas } from '../services/busquedaService'
 
@@ -16,7 +16,7 @@ function money(value: number | null): string {
 }
 
 export default function TarjetaProducto({ resultado, onToggleSeleccion, seleccionadas, onPreguntarAgente }: Props) {
-  const { termino, cantidad, opciones, encontrado_propia } = resultado
+  const { termino, cantidad, opciones, encontrado_propia, no_encontrado } = resultado
   const [agotadoExpandido, setAgotadoExpandido] = useState<string | null>(null)
   const [alternativasRemotas, setAlternativasRemotas] = useState<Record<string, OpcionProducto[]>>({})
   const [cargandoAlternativas, setCargandoAlternativas] = useState<string | null>(null)
@@ -34,7 +34,26 @@ export default function TarjetaProducto({ resultado, onToggleSeleccion, seleccio
     seleccionadas.some((s) => s.tienda === op.tienda && s.nombre_producto === op.nombre_producto)
 
   const opcionesDisponibles = opciones.filter((o) => o.disponible)
-  const esAgotado = opciones.length === 1 && opciones[0].agotado === true
+  const esNoEncontrado = no_encontrado === true
+  const tieneSimilares = esNoEncontrado && opciones.length > 0
+  const sinResultados = esNoEncontrado && opciones.length === 0
+
+  const handleIA = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    onPreguntarAgente?.(termino)
+  }
+
+  const BotonIA = ({ size = 'sm' }: { size?: 'sm' | 'xs' }) => (
+    <button
+      onClick={handleIA}
+      title="Preguntar al asistente IA"
+      className={`flex items-center gap-1 rounded-lg font-medium transition-colors text-white flex-shrink-0 ${size === 'xs' ? 'px-1.5 py-1 text-[10px]' : 'px-2 py-1 text-xs'}`}
+      style={{ backgroundColor: 'var(--color-primary)' }}
+    >
+      <Sparkles className={size === 'xs' ? 'w-3 h-3' : 'w-3.5 h-3.5'} />
+      {size === 'sm' && 'IA'}
+    </button>
+  )
 
   const handleClickVariante = (e: React.MouseEvent, op: OpcionProducto, variante: string) => {
     e.stopPropagation()
@@ -74,30 +93,33 @@ export default function TarjetaProducto({ resultado, onToggleSeleccion, seleccio
       style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}
     >
       <div
-        className="px-4 py-3 flex items-center justify-between cursor-pointer select-none transition-colors hover:opacity-80"
+        className="px-3 sm:px-4 py-3 flex items-center justify-between cursor-pointer select-none transition-colors hover:opacity-80 gap-2"
         style={{ backgroundColor: 'var(--color-bg)' }}
         onClick={() => setColapsado((v) => !v)}
       >
-        <div className="flex items-center gap-2">
-          {opciones.length > 0 && !esAgotado && (
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          {opciones.length > 0 && !sinResultados && (
             colapsado
               ? <ChevronRight className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--color-text-muted)' }} />
               : <ChevronDown className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--color-text-muted)' }} />
           )}
-          <span className="font-bold text-sm" style={{ color: 'var(--color-text)' }}>
+          {sinResultados && (
+            <SearchX className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--color-danger)' }} />
+          )}
+          <span className="font-bold text-sm truncate" style={{ color: 'var(--color-text)' }}>
             {termino}
           </span>
           {cantidad > 1 && (
             <span
-              className="px-2 py-0.5 rounded text-xs font-medium"
+              className="px-2 py-0.5 rounded text-xs font-medium flex-shrink-0"
               style={{ backgroundColor: 'var(--color-primary)', color: '#fff' }}
             >
               x{cantidad}
             </span>
           )}
-          {encontrado_propia && (
+          {encontrado_propia && !esNoEncontrado && (
             <span
-              className="flex items-center gap-1 px-1.5 py-0.5 rounded text-xs"
+              className="hidden sm:flex items-center gap-1 px-1.5 py-0.5 rounded text-xs flex-shrink-0"
               style={{ backgroundColor: '#D1FAE5', color: '#065F46' }}
             >
               <BadgeCheck className="w-3 h-3" />
@@ -106,29 +128,42 @@ export default function TarjetaProducto({ resultado, onToggleSeleccion, seleccio
           )}
           {colapsado && seleccionadas.length > 0 && (
             <span
-              className="flex items-center gap-1 px-1.5 py-0.5 rounded text-xs"
+              className="flex items-center gap-1 px-1.5 py-0.5 rounded text-xs flex-shrink-0"
               style={{ backgroundColor: '#D1FAE5', color: '#065F46' }}
             >
               <Check className="w-3 h-3" />
-              {seleccionadas.length} {seleccionadas.length === 1 ? 'seleccionado' : 'seleccionados'}
+              {seleccionadas.length}
             </span>
           )}
         </div>
-        <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
-          {esAgotado ? 'No encontrado' : `${opciones.length} ${opciones.length === 1 ? 'opción' : 'opciones'}`}
-        </span>
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          <span className="text-xs hidden sm:inline" style={{ color: 'var(--color-text-muted)' }}>
+            {sinResultados
+              ? 'No encontrado'
+              : tieneSimilares
+                ? `${opciones.length} similares`
+                : `${opciones.length} ${opciones.length === 1 ? 'opción' : 'opciones'}`}
+          </span>
+          <span className="text-xs sm:hidden" style={{ color: 'var(--color-text-muted)' }}>
+            {sinResultados ? 'N/E' : opciones.length}
+          </span>
+          {esNoEncontrado && onPreguntarAgente && (
+            <BotonIA size="xs" />
+          )}
+        </div>
       </div>
 
-      {opciones.length === 0 || esAgotado ? (
-        <div className="px-4 py-4 space-y-2">
-          <div className="flex items-center justify-center gap-2 text-sm" style={{ color: 'var(--color-text-muted)' }}>
-            <X className="w-4 h-4" />
-            No encontrado en ninguna tienda
+      {/* Caso 1: Sin resultados ni similares */}
+      {sinResultados && (
+        <div className="px-3 sm:px-4 py-4 space-y-2">
+          <div className="flex items-center justify-center gap-2 text-sm text-center" style={{ color: 'var(--color-text-muted)' }}>
+            <X className="w-4 h-4 flex-shrink-0" />
+            <span>No encontrado en ninguna tienda</span>
           </div>
           {onPreguntarAgente && (
             <div className="flex justify-center">
               <button
-                onClick={() => onPreguntarAgente(termino)}
+                onClick={handleIA}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors text-white"
                 style={{ backgroundColor: 'var(--color-primary)' }}
               >
@@ -138,7 +173,81 @@ export default function TarjetaProducto({ resultado, onToggleSeleccion, seleccio
             </div>
           )}
         </div>
-      ) : colapsado ? null : (
+      )}
+
+      {/* Caso 2: No encontrado pero hay similares */}
+      {tieneSimilares && !colapsado && (
+        <div className="divide-y" style={{ borderColor: 'var(--color-border)' }}>
+          <div
+            className="px-3 sm:px-4 py-2.5 flex items-center gap-2 text-xs"
+            style={{ backgroundColor: '#FEF3C7', color: '#B45309' }}
+          >
+            <SearchX className="w-3.5 h-3.5 flex-shrink-0" />
+            <span>No encontré lo que me pediste, pero encontré algo similar:</span>
+          </div>
+          {opciones.map((op) => {
+            const selected = isSelected(op)
+            const key = `${op.tienda}-${op.nombre_producto}`
+            return (
+              <button
+                key={key}
+                onClick={() => handleClickOpcion(op)}
+                className="w-full flex items-center justify-between px-3 sm:px-4 py-3 text-left transition-colors gap-2"
+                style={{
+                  backgroundColor: selected ? 'var(--color-primary)' : 'transparent',
+                  opacity: !op.disponible && !selected ? 0.7 : 1,
+                }}
+              >
+                <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                  {selected ? (
+                    <Check className="w-4 h-4 flex-shrink-0" style={{ color: '#fff' }} />
+                  ) : (
+                    <Store className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--color-text-muted)' }} />
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-medium truncate" style={{ color: selected ? '#fff' : 'var(--color-text)' }}>
+                      {op.nombre_producto}
+                    </div>
+                    <div className="text-xs flex items-center gap-1.5 flex-wrap" style={{ color: selected ? 'rgba(255,255,255,0.8)' : 'var(--color-text-muted)' }}>
+                      {op.tienda}
+                      {op.es_propio && (
+                        <span className="px-1.5 py-0.5 rounded text-xs" style={{ backgroundColor: selected ? 'rgba(255,255,255,0.2)' : '#D1FAE5', color: selected ? '#fff' : '#065F46' }}>
+                          AV
+                        </span>
+                      )}
+                      {op.margen_aplicado > 0 && (
+                        <span className="px-1.5 py-0.5 rounded text-xs" style={{ backgroundColor: selected ? 'rgba(255,255,255,0.2)' : '#FEF3C7', color: selected ? '#fff' : '#B45309' }}>
+                          +{op.margen_aplicado}%
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <div className="text-right flex-shrink-0">
+                  <div className="font-bold text-sm" style={{ color: selected ? '#fff' : 'var(--color-text)' }}>
+                    {money(op.precio_con_margen)}
+                  </div>
+                </div>
+              </button>
+            )
+          })}
+          {onPreguntarAgente && (
+            <div className="px-3 sm:px-4 py-2.5 flex justify-center" style={{ backgroundColor: 'var(--color-bg)' }}>
+              <button
+                onClick={handleIA}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors text-white"
+                style={{ backgroundColor: 'var(--color-primary)' }}
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                ¿No te sirve? Preguntar al asistente IA
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Caso 3: Resultados normales */}
+      {!esNoEncontrado && opciones.length > 0 && !colapsado && (
         <div className="divide-y" style={{ borderColor: 'var(--color-border)' }}>
           {opciones.map((op) => {
             const selected = isSelected(op)
@@ -158,57 +267,36 @@ export default function TarjetaProducto({ resultado, onToggleSeleccion, seleccio
               <div key={key}>
                 <button
                   onClick={() => handleClickOpcion(op)}
-                  className="w-full flex items-center justify-between px-4 py-3 text-left transition-colors"
+                  className="w-full flex items-center justify-between px-3 sm:px-4 py-3 text-left transition-colors gap-2"
                   style={{
                     backgroundColor: selected ? 'var(--color-primary)' : 'transparent',
                     opacity: !op.disponible && !selected ? 0.7 : 1,
                   }}
                 >
-                  <div className="flex items-center gap-3 min-w-0">
+                  <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
                     {selected ? (
                       <Check className="w-4 h-4 flex-shrink-0" style={{ color: '#fff' }} />
                     ) : (
                       <Store className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--color-text-muted)' }} />
                     )}
-                    <div className="min-w-0">
-                      <div
-                        className="text-sm font-medium truncate"
-                        style={{ color: selected ? '#fff' : 'var(--color-text)' }}
-                      >
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-medium truncate" style={{ color: selected ? '#fff' : 'var(--color-text)' }}>
                         {op.nombre_producto}
                       </div>
-                      <div
-                        className="text-xs flex items-center gap-2 flex-wrap"
-                        style={{ color: selected ? 'rgba(255,255,255,0.8)' : 'var(--color-text-muted)' }}
-                      >
+                      <div className="text-xs flex items-center gap-1.5 flex-wrap" style={{ color: selected ? 'rgba(255,255,255,0.8)' : 'var(--color-text-muted)' }}>
                         {op.tienda}
                         {op.es_propio && (
-                          <span
-                            className="px-1.5 py-0.5 rounded text-xs"
-                            style={{
-                              backgroundColor: selected ? 'rgba(255,255,255,0.2)' : '#D1FAE5',
-                              color: selected ? '#fff' : '#065F46',
-                            }}
-                          >
+                          <span className="px-1.5 py-0.5 rounded text-xs" style={{ backgroundColor: selected ? 'rgba(255,255,255,0.2)' : '#D1FAE5', color: selected ? '#fff' : '#065F46' }}>
                             Tienda propia
                           </span>
                         )}
                         {op.margen_aplicado > 0 && (
-                          <span
-                            className="px-1.5 py-0.5 rounded text-xs"
-                            style={{
-                              backgroundColor: selected ? 'rgba(255,255,255,0.2)' : '#FEF3C7',
-                              color: selected ? '#fff' : '#B45309',
-                            }}
-                          >
+                          <span className="px-1.5 py-0.5 rounded text-xs" style={{ backgroundColor: selected ? 'rgba(255,255,255,0.2)' : '#FEF3C7', color: selected ? '#fff' : '#B45309' }}>
                             +{op.margen_aplicado}%
                           </span>
                         )}
                         {!op.disponible && (
-                          <span
-                            className="flex items-center gap-1 text-xs cursor-pointer"
-                            style={{ color: selected ? 'rgba(255,255,255,0.8)' : 'var(--color-danger)' }}
-                          >
+                          <span className="flex items-center gap-1 text-xs cursor-pointer" style={{ color: selected ? 'rgba(255,255,255,0.8)' : 'var(--color-danger)' }}>
                             <AlertTriangle className="w-3 h-3" />
                             Agotado
                             <span style={{ color: '#065F46' }} className="flex items-center gap-0.5">
@@ -230,16 +318,8 @@ export default function TarjetaProducto({ resultado, onToggleSeleccion, seleccio
                                 disabled={!op.disponible}
                                 className="px-1.5 py-0.5 rounded text-xs transition-colors disabled:opacity-50"
                                 style={{
-                                  backgroundColor: vSelected
-                                    ? 'var(--color-primary)'
-                                    : selected
-                                      ? 'rgba(255,255,255,0.15)'
-                                      : 'var(--color-bg)',
-                                  color: vSelected
-                                    ? '#fff'
-                                    : selected
-                                      ? 'rgba(255,255,255,0.9)'
-                                      : 'var(--color-text-muted)',
+                                  backgroundColor: vSelected ? 'var(--color-primary)' : selected ? 'rgba(255,255,255,0.15)' : 'var(--color-bg)',
+                                  color: vSelected ? '#fff' : selected ? 'rgba(255,255,255,0.9)' : 'var(--color-text-muted)',
                                   border: `1px solid ${vSelected ? 'var(--color-primary)' : selected ? 'rgba(255,255,255,0.2)' : 'var(--color-border)'}`,
                                 }}
                               >
@@ -251,30 +331,20 @@ export default function TarjetaProducto({ resultado, onToggleSeleccion, seleccio
                       )}
                     </div>
                   </div>
-                  <div className="text-right flex-shrink-0 ml-2">
-                    <div
-                      className="font-bold text-sm"
-                      style={{ color: selected ? '#fff' : 'var(--color-text)' }}
-                    >
+                  <div className="text-right flex-shrink-0 ml-1 sm:ml-2">
+                    <div className="font-bold text-sm" style={{ color: selected ? '#fff' : 'var(--color-text)' }}>
                       {money(op.precio_con_margen)}
                     </div>
                     {op.margen_aplicado > 0 && op.precio_base !== op.precio_con_margen && (
-                      <div
-                        className="text-xs"
-                        style={{ color: selected ? 'rgba(255,255,255,0.6)' : 'var(--color-text-muted)' }}
-                      >
+                      <div className="text-xs hidden sm:block" style={{ color: selected ? 'rgba(255,255,255,0.6)' : 'var(--color-text-muted)' }}>
                         base: {money(op.precio_base)}
                       </div>
                     )}
                   </div>
                 </button>
 
-                {/* Panel de alternativas para agotados */}
                 {isExpanded && (
-                  <div
-                    className="px-4 py-3 space-y-2"
-                    style={{ backgroundColor: 'var(--color-bg)' }}
-                  >
+                  <div className="px-3 sm:px-4 py-3 space-y-2" style={{ backgroundColor: 'var(--color-bg)' }}>
                     {estaCargando ? (
                       <div className="flex items-center gap-2 py-3 justify-center" style={{ color: 'var(--color-text-muted)' }}>
                         <Loader2 className="w-4 h-4 animate-spin" />
@@ -291,50 +361,20 @@ export default function TarjetaProducto({ resultado, onToggleSeleccion, seleccio
                             <button
                               key={`${alt.tienda}-${altIdx}`}
                               onClick={() => onToggleSeleccion(termino, cantidad, alt)}
-                              className="w-full flex items-center justify-between rounded-lg border px-3 py-2 text-left transition-colors"
-                              style={{
-                                backgroundColor: altSelected ? 'var(--color-primary)' : 'var(--color-surface)',
-                                borderColor: altSelected ? 'var(--color-primary)' : 'var(--color-border)',
-                              }}
+                              className="w-full flex items-center justify-between rounded-lg border px-3 py-2 text-left transition-colors gap-2"
+                              style={{ backgroundColor: altSelected ? 'var(--color-primary)' : 'var(--color-surface)', borderColor: altSelected ? 'var(--color-primary)' : 'var(--color-border)' }}
                             >
-                              <div className="flex items-center gap-2 min-w-0">
-                                {altSelected ? (
-                                  <Check className="w-3.5 h-3.5 flex-shrink-0" style={{ color: '#fff' }} />
-                                ) : (
-                                  <Store className="w-3.5 h-3.5 flex-shrink-0" style={{ color: 'var(--color-text-muted)' }} />
-                                )}
+                              <div className="flex items-center gap-2 min-w-0 flex-1">
+                                {altSelected ? <Check className="w-3.5 h-3.5 flex-shrink-0" style={{ color: '#fff' }} /> : <Store className="w-3.5 h-3.5 flex-shrink-0" style={{ color: 'var(--color-text-muted)' }} />}
                                 <div className="min-w-0">
-                                  <div
-                                    className="text-xs font-medium truncate"
-                                    style={{ color: altSelected ? '#fff' : 'var(--color-text)' }}
-                                  >
-                                    {alt.nombre_producto}
-                                  </div>
-                                  <div
-                                    className="text-xs flex items-center gap-1.5"
-                                    style={{ color: altSelected ? 'rgba(255,255,255,0.8)' : 'var(--color-text-muted)' }}
-                                  >
+                                  <div className="text-xs font-medium truncate" style={{ color: altSelected ? '#fff' : 'var(--color-text)' }}>{alt.nombre_producto}</div>
+                                  <div className="text-xs flex items-center gap-1.5" style={{ color: altSelected ? 'rgba(255,255,255,0.8)' : 'var(--color-text-muted)' }}>
                                     {alt.tienda}
-                                    {alt.margen_aplicado > 0 && (
-                                      <span
-                                        className="px-1 py-0.5 rounded text-xs"
-                                        style={{
-                                          backgroundColor: altSelected ? 'rgba(255,255,255,0.2)' : '#FEF3C7',
-                                          color: altSelected ? '#fff' : '#B45309',
-                                        }}
-                                      >
-                                        +{alt.margen_aplicado}%
-                                      </span>
-                                    )}
+                                    {alt.margen_aplicado > 0 && <span className="px-1 py-0.5 rounded text-xs" style={{ backgroundColor: altSelected ? 'rgba(255,255,255,0.2)' : '#FEF3C7', color: altSelected ? '#fff' : '#B45309' }}>+{alt.margen_aplicado}%</span>}
                                   </div>
                                 </div>
                               </div>
-                              <span
-                                className="text-sm font-bold flex-shrink-0"
-                                style={{ color: altSelected ? '#fff' : 'var(--color-primary)' }}
-                              >
-                                {money(alt.precio_con_margen)}
-                              </span>
+                              <span className="text-sm font-bold flex-shrink-0" style={{ color: altSelected ? '#fff' : 'var(--color-primary)' }}>{money(alt.precio_con_margen)}</span>
                             </button>
                           )
                         })}

@@ -345,23 +345,51 @@ async def buscar_por_termino_priorizado(
 
     todas_opciones = opciones_propias + opciones_externas
 
-    # Si no hay resultados, generar sugerencia y opción agotado
+    # Si no hay resultados, buscar productos similares por tipo
     sugerencia = None
+    no_encontrado = False
     if not todas_opciones:
         sugerencia = sugerir_termino(termino)
-        # Retornar opción agotado para que el frontend pueda mostrar alternativas
-        todas_opciones = [{
-            "tienda": None,
-            "nombre_producto": termino,
-            "precio_base": None,
-            "precio_con_margen": None,
-            "margen_aplicado": 0.0,
-            "disponible": False,
-            "url": None,
-            "es_propio": False,
-            "variantes": [],
-            "agotado": True,
-        }]
+        no_encontrado = True
+
+        # Buscar similares por tipo (ej: "diodo" si se buscó "varistor 14d431k")
+        termino_similar = tipo or (termino_base or termino.split()[0] if termino else "")
+        if termino_similar:
+            logger.info("Buscando similares por tipo '%s' para '%s'", termino_similar, termino)
+            resultado_sim = await buscar_por_termino(db, termino_similar)
+            opciones_sim_raw = resultado_sim.get("opciones", [])
+            # No filtrar por relevancia para similares: queremos todos los del tipo
+            opciones_sim = opciones_sim_raw[:5]
+            for op in opciones_sim[:3]:
+                if op["precio_base"] is None:
+                    continue
+                if op["tienda"] == tienda_propia:
+                    todas_opciones.append({
+                        "tienda": op["tienda"],
+                        "nombre_producto": op["nombre_producto"],
+                        "precio_base": op["precio_base"],
+                        "precio_con_margen": round(op["precio_base"], 2),
+                        "margen_aplicado": 0.0,
+                        "disponible": op["disponible"],
+                        "url": op["url"],
+                        "es_propio": True,
+                        "variantes": op.get("variantes", []),
+                        "similares": True,
+                    })
+                else:
+                    precio_con_margen = round(op["precio_base"] * margen_factor, 2)
+                    todas_opciones.append({
+                        "tienda": op["tienda"],
+                        "nombre_producto": op["nombre_producto"],
+                        "precio_base": op["precio_base"],
+                        "precio_con_margen": precio_con_margen,
+                        "margen_aplicado": margen_pct,
+                        "disponible": op["disponible"],
+                        "url": op["url"],
+                        "es_propio": False,
+                        "variantes": op.get("variantes", []),
+                        "similares": True,
+                    })
 
     return {
         "termino": termino,
@@ -369,4 +397,5 @@ async def buscar_por_termino_priorizado(
         "encontrado_propia": len(opciones_propias) > 0,
         "opciones": todas_opciones,
         "sugerencia": sugerencia,
+        "no_encontrado": no_encontrado,
     }
