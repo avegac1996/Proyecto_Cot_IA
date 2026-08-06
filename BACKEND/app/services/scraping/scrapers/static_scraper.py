@@ -18,7 +18,6 @@ import logging
 import httpx
 from bs4 import BeautifulSoup
 
-from app.services.scraping import catalogo
 from app.services.scraping.scrapers.base import BaseScraper
 
 logger = logging.getLogger(__name__)
@@ -40,15 +39,6 @@ class StaticScraper(BaseScraper):
     """Scraper para sitios que no requieren JavaScript (HTML estático)."""
 
     async def scrape(self, query: str) -> list[dict]:
-        # Vía rápida: catálogo cacheado vía WooCommerce Store API (TTL 1 hora)
-        try:
-            if await catalogo.soporta_api_wc(self.url_base):
-                productos = await catalogo.obtener_catalogo(self.url_base)
-                if productos:
-                    return catalogo.buscar_en_catalogo(productos, query)
-        except Exception as exc:
-            logger.warning("Catálogo WC falló en %s, usando scraping HTML: %s", self.nombre_tienda, exc)
-
         url_busqueda = self._build_search_url(query)
         results: list[dict] = []
 

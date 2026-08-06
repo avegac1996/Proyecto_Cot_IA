@@ -130,11 +130,13 @@ async def _scrape_tienda(tienda: Tienda, termino: str) -> list[dict]:
 
 
 async def buscar_por_termino(db: AsyncSession, termino: str) -> dict:
-    """Busca un término libre en todas las tiendas activas.
+    """Busca un término en el catálogo persistido en BD.
 
-    Usa cache en memoria (30 min TTL) y scraping paralelo con timeout.
+    Flujo:
+    1. Verificar cache en memoria (5 min TTL)
+    2. Buscar en catalogo_productos (BD) — instantáneo
+    3. Si la BD no tiene productos de ninguna tienda, fallback a scraping en vivo
     """
-    # Verificar cache en memoria
     cache_key = termino.lower().strip()
     if cache_key in _cache_termino:
         cached_at, cached_opts = _cache_termino[cache_key]
@@ -142,10 +144,20 @@ async def buscar_por_termino(db: AsyncSession, termino: str) -> dict:
             logger.info("Cache hit para término '%s'", termino)
             return {"termino": termino, "opciones": cached_opts, "fuente": "cache"}
 
+    # Buscar en BD (catálogo persistido)
+    from app.services.scraping.catalogo_bd import buscar_en_bd, contar_productos
+
+    total_en_bd = await contar_productos(db)
+    if total_en_bd > 0:
+        opciones = await buscar_en_bd(db, termino, limite=MAX_RESULTADOS_POR_TIENDA)
+        _cache_termino[cache_key] = (datetime.now(), opciones)
+        return {"termino": termino, "opciones": opciones, "fuente": "catalogo_bd"}
+
+    # Fallback: scraping en vivo (solo si BD está vacía)
+    logger.info("BD catálogo vacía, fallback a scraping para '%s'", termino)
     result = await db.execute(select(Tienda).where(Tienda.activa.is_(True)))
     tiendas = result.scalars().all()
 
-    # Scraping paralelo: todas las tiendas al mismo tiempo
     tasks = [_scrape_tienda(tienda, termino) for tienda in tiendas]
     resultados_por_tienda = await asyncio.gather(*tasks, return_exceptions=False)
 
@@ -161,9 +173,7 @@ async def buscar_por_termino(db: AsyncSession, termino: str) -> dict:
                 "variantes": item.get("variantes", []),
             })
 
-    # Guardar en cache
     _cache_termino[cache_key] = (datetime.now(), opciones)
-
     return {"termino": termino, "opciones": opciones, "fuente": "web_scraping"}
 
 

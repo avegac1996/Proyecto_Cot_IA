@@ -184,26 +184,29 @@ async def lifespan(app: FastAPI):
     await seed_default_users()
     # Seed de catálogos (tiendas, preguntas, productos)
     await seed_catalogos()
-    # Cargar catálogo WooCommerce sincrónicamente al inicio
-    from app.services.scraping import catalogo
+    # Cargar catálogo WooCommerce a BD sincrónicamente al inicio
+    from app.services.scraping import catalogo_bd
 
     async with async_session() as db:
         result = await db.execute(select(Tienda).where(Tienda.activa.is_(True)))
         for tienda in result.scalars().all():
             url = tienda.url_base.rstrip("/")
             try:
-                if await catalogo.soporta_api_wc(url):
-                    await catalogo.refrescar_catalogo(url)
-                    logger.info("Catálogo inicial cargado para %s", url)
+                if await catalogo_bd.soporta_api_wc(url):
+                    count = await catalogo_bd.refrescar_catalogo_bd(db, url, tienda.nombre)
+                    logger.info("Catálogo BD inicial cargado para %s (%d productos)", tienda.nombre, count)
             except Exception as exc:
-                logger.warning("Carga inicial de catálogo falló para %s: %s", url, exc)
+                logger.warning("Carga inicial de catálogo BD falló para %s: %s", tienda.nombre, exc)
 
     # Refresh de catálogo en background (cada hora)
     tareas_refresh = []
     async with async_session() as db:
         result = await db.execute(select(Tienda).where(Tienda.activa.is_(True)))
         for tienda in result.scalars().all():
-            tareas_refresh.append(catalogo.iniciar_refresh_background(tienda.url_base.rstrip("/")))
+            url = tienda.url_base.rstrip("/")
+            tareas_refresh.append(
+                catalogo_bd.iniciar_refresh_background(async_session, url, tienda.nombre)
+            )
     yield
     for tarea in tareas_refresh:
         tarea.cancel()
