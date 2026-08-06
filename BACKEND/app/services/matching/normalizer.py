@@ -7,7 +7,7 @@ TIPOS_PALABRAS: dict[str, list[str]] = {
     "capacitor": ["capacitor", "condensador", "capacitores"],
     "led": ["led", "leds", "foquito", "foquitos", "bombillo", "bombilla", "foco", "focos"],
     "transistor": ["transistor", "transistores"],
-    "diodo": ["diodo", "diodos"],
+    "diodo": ["diodo", "diodos", "varistor", "varistores"],
     "integrado": ["integrado", "circuito integrado", "chip"],
     "protoboard": ["protoboard", "tablita", "breadboard", "tabla de pruebas"],
     "arduino": ["arduino"],
@@ -29,7 +29,7 @@ TIPOS_PALABRAS: dict[str, list[str]] = {
     "porta_pila": ["porta pila", "porta pilas", "broche", "porta bateria", "clip bateria"],
     "bomba": ["bomba", "bombas", "bomba de agua", "bomba agua"],
     "regleta": ["regleta", "regletas", "tira de pines", "tira pines", "header"],
-    "terminal": ["terminal", "terminales", "terminal block", "bloque terminal", "kf301"],
+    "terminal": ["terminal", "terminales", "terminal block", "bloque terminal", "kf301", "bornero", "bornera", "borneras"],
     "placa": ["placa", "placas", "placa perforada", "baquelita perforada", "placa universal"],
     "caja": ["caja", "cajas", "caja de paso", "caja paso", "caja pvc"],
 }
@@ -37,7 +37,7 @@ TIPOS_PALABRAS: dict[str, list[str]] = {
 COLORES = ["rojo", "rojos", "verde", "verdes", "azul", "azules", "amarillo", "amarillos", "amarrillo", "amarrillos", "blanco", "blancos", "rgb", "naranja", "naranjas", "violeta", "morado", "morados", "negro", "negros"]
 TAMANOS_LED = ["3mm", "5mm", "8mm", "10mm", "smd", "0805", "1206"]
 TIPOS_TRANSISTOR = ["npn", "pnp", "mosfet", "jfet"]
-TIPOS_DIODOS = ["rectificador", "zener", "schottky", "led", "puente"]
+TIPOS_DIODOS = ["rectificador", "zener", "schottky", "led", "puente", "varistor"]
 TIPOS_MOTOR = ["dc", "servo", "paso a paso", "stepper"]
 TIPOS_SENSOR = ["temperatura", "humedad", "distancia", "luz", "movimiento", "proximidad", "ultrasonico", "pir", "dht11", "dht22", "lm35", "ds18b20"]
 
@@ -67,6 +67,7 @@ DESCRIPCIONES_EXTRA = {
     "activo", "pasivo",
     "2 pines", "4 pines", "2 pin", "4 pin",
     "cristal", "oscilador",
+    "rectificador", "zener", "schottky", "tornillo",
 }
 
 # Defaults automáticos basados en las preguntas frecuentes de la tienda.

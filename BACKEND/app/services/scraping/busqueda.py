@@ -345,10 +345,23 @@ async def buscar_por_termino_priorizado(
 
     todas_opciones = opciones_propias + opciones_externas
 
-    # Si no hay resultados, generar sugerencia
+    # Si no hay resultados, generar sugerencia y opción agotado
     sugerencia = None
     if not todas_opciones:
         sugerencia = sugerir_termino(termino)
+        # Retornar opción agotado para que el frontend pueda mostrar alternativas
+        todas_opciones = [{
+            "tienda": None,
+            "nombre_producto": termino,
+            "precio_base": None,
+            "precio_con_margen": None,
+            "margen_aplicado": 0.0,
+            "disponible": False,
+            "url": None,
+            "es_propio": False,
+            "variantes": [],
+            "agotado": True,
+        }]
 
     return {
         "termino": termino,

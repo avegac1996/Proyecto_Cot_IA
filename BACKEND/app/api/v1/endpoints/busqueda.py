@@ -22,7 +22,7 @@ class BusquedaRequest(BaseModel):
 
 
 class OpcionProducto(BaseModel):
-    tienda: str
+    tienda: str | None
     nombre_producto: str
     precio_base: float | None
     precio_con_margen: float | None
@@ -31,6 +31,7 @@ class OpcionProducto(BaseModel):
     url: str | None
     es_propio: bool
     variantes: list[str] = []
+    agotado: bool = False
 
 
 class SugerenciaResponse(BaseModel):

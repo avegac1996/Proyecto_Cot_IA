@@ -219,7 +219,9 @@ _SINONIMOS = {
     "boya": "nivel",
     "block": "terminal",
     "bornera": "terminal",
+    "bornero": "bornera",
     "cable": "conector",
+    "varistor": "diodo",
 }
 
 

@@ -135,7 +135,7 @@ async def buscar_por_termino(db: AsyncSession, termino: str) -> dict:
     Flujo:
     1. Verificar cache en memoria (5 min TTL)
     2. Buscar en catalogo_productos (BD) — instantáneo
-    3. Si la BD no tiene productos de ninguna tienda, fallback a scraping en vivo
+    3. Si la BD no encuentra resultados para este término, fallback a scraping en vivo
     """
     cache_key = termino.lower().strip()
     if cache_key in _cache_termino:
@@ -150,11 +150,13 @@ async def buscar_por_termino(db: AsyncSession, termino: str) -> dict:
     total_en_bd = await contar_productos(db)
     if total_en_bd > 0:
         opciones = await buscar_en_bd(db, termino, limite=MAX_RESULTADOS_POR_TIENDA)
-        _cache_termino[cache_key] = (datetime.now(), opciones)
-        return {"termino": termino, "opciones": opciones, "fuente": "catalogo_bd"}
+        if opciones:
+            _cache_termino[cache_key] = (datetime.now(), opciones)
+            return {"termino": termino, "opciones": opciones, "fuente": "catalogo_bd"}
+        # BD tiene productos pero ninguno matchea este término → fallback a scraping
+        logger.info("BD sin resultados para '%s', fallback a scraping en vivo", termino)
 
-    # Fallback: scraping en vivo (solo si BD está vacía)
-    logger.info("BD catálogo vacía, fallback a scraping para '%s'", termino)
+    # Fallback: scraping en vivo
     result = await db.execute(select(Tienda).where(Tienda.activa.is_(True)))
     tiendas = result.scalars().all()
 
