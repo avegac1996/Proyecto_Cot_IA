@@ -34,6 +34,7 @@ export default function TarjetaProducto({ resultado, onToggleSeleccion, seleccio
     seleccionadas.some((s) => s.tienda === op.tienda && s.nombre_producto === op.nombre_producto)
 
   const opcionesDisponibles = opciones.filter((o) => o.disponible)
+  const esAgotado = opciones.length === 1 && opciones[0].agotado === true
 
   const handleClickVariante = (e: React.MouseEvent, op: OpcionProducto, variante: string) => {
     e.stopPropagation()
@@ -51,7 +52,7 @@ export default function TarjetaProducto({ resultado, onToggleSeleccion, seleccio
         // Cargar alternativas remotas si no tenemos cache local
         if (!alternativasRemotas[key] && !cargandoAlternativas) {
           setCargandoAlternativas(key)
-          buscarAlternativas(op.nombre_producto, op.tienda)
+          buscarAlternativas(op.nombre_producto, op.tienda ?? '')
             .then((alts) => {
               setAlternativasRemotas((prev) => ({ ...prev, [key]: alts }))
             })
@@ -78,7 +79,7 @@ export default function TarjetaProducto({ resultado, onToggleSeleccion, seleccio
         onClick={() => setColapsado((v) => !v)}
       >
         <div className="flex items-center gap-2">
-          {opciones.length > 0 && (
+          {opciones.length > 0 && !esAgotado && (
             colapsado
               ? <ChevronRight className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--color-text-muted)' }} />
               : <ChevronDown className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--color-text-muted)' }} />
@@ -114,11 +115,11 @@ export default function TarjetaProducto({ resultado, onToggleSeleccion, seleccio
           )}
         </div>
         <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
-          {opciones.length} {opciones.length === 1 ? 'opción' : 'opciones'}
+          {esAgotado ? 'No encontrado' : `${opciones.length} ${opciones.length === 1 ? 'opción' : 'opciones'}`}
         </span>
       </div>
 
-      {opciones.length === 0 ? (
+      {opciones.length === 0 || esAgotado ? (
         <div className="px-4 py-4 space-y-2">
           <div className="flex items-center justify-center gap-2 text-sm" style={{ color: 'var(--color-text-muted)' }}>
             <X className="w-4 h-4" />

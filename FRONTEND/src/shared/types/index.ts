@@ -98,7 +98,7 @@ export interface CotizacionListItem {
 }
 
 export interface OpcionProducto {
-  tienda: string
+  tienda: string | null
   nombre_producto: string
   precio_base: number | null
   precio_con_margen: number | null
@@ -107,6 +107,7 @@ export interface OpcionProducto {
   url: string | null
   es_propio: boolean
   variantes?: string[]
+  agotado?: boolean
 }
 
 export interface Sugerencia {
