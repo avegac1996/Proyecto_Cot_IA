@@ -74,25 +74,26 @@ async def buscar_componentes(
     """
     componentes = extraer_componentes(body.texto)
 
-    # Limpiar cache en memoria para que cada búsqueda traiga resultados frescos
-    limpiar_cache_termino()
-
     # Sin deduplicación global: cada término busca independientemente.
     # El filtrado por relevancia se encarga de que cada producto aparezca
     # bajo el término más adecuado (ej: "LED Verde" bajo "led verde", no "led rojo").
     from app.services.scraping.sugerencias import sugerir_termino
 
-    resultados = []
-    for comp in componentes:
-        resultado = await buscar_por_termino_priorizado(
-            db, comp["termino"], comp["cantidad"],
-            termino_base=comp.get("termino_base"),
-            descriptores=comp.get("descriptores", []),
-            tipo=comp.get("tipo"),
-        )
-        if not resultado.get("opciones") and not resultado.get("sugerencia"):
-            resultado["sugerencia"] = sugerir_termino(comp["termino"])
-        resultados.append(resultado)
+    from app.core.database import async_session
+
+    async def _buscar_comp(comp: dict) -> dict:
+        async with async_session() as session:
+            resultado = await buscar_por_termino_priorizado(
+                session, comp["termino"], comp["cantidad"],
+                termino_base=comp.get("termino_base"),
+                descriptores=comp.get("descriptores", []),
+                tipo=comp.get("tipo"),
+            )
+            if not resultado.get("opciones") and not resultado.get("sugerencia"):
+                resultado["sugerencia"] = sugerir_termino(comp["termino"])
+            return resultado
+
+    resultados = await asyncio.gather(*[_buscar_comp(c) for c in componentes])
 
     return BusquedaResponse(resultados=resultados)
 

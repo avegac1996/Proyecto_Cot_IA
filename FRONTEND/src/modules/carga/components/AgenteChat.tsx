@@ -6,9 +6,11 @@ import { preguntarAgente, type MensajeChat } from '../services/busquedaService'
 interface Props {
   resultados: ResultadoComponente[]
   terminoBusqueda?: string
+  preguntaInicial?: string | null
+  onPreguntaConsumida?: () => void
 }
 
-export default function AgenteChat({ resultados, terminoBusqueda }: Props) {
+export default function AgenteChat({ resultados, terminoBusqueda, preguntaInicial, onPreguntaConsumida }: Props) {
   const [mensajes, setMensajes] = useState<MensajeChat[]>([])
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -20,17 +22,14 @@ export default function AgenteChat({ resultados, terminoBusqueda }: Props) {
     }
   }, [mensajes, isLoading])
 
-  const handleSend = async () => {
-    const trimmed = input.trim()
-    if (!trimmed || isLoading) return
-
-    const nuevosMensajes = [...mensajes, { role: 'user' as const, content: trimmed }]
+  const enviarMensaje = async (texto: string, historialPrevio?: MensajeChat[]) => {
+    const base = historialPrevio ?? mensajes
+    const nuevosMensajes = [...base, { role: 'user' as const, content: texto }]
     setMensajes(nuevosMensajes)
-    setInput('')
     setIsLoading(true)
 
     try {
-      const respuesta = await preguntarAgente(trimmed, resultados, nuevosMensajes)
+      const respuesta = await preguntarAgente(texto, resultados, nuevosMensajes)
       setMensajes((prev) => [...prev, { role: 'assistant', content: respuesta }])
     } catch {
       setMensajes((prev) => [
@@ -40,6 +39,22 @@ export default function AgenteChat({ resultados, terminoBusqueda }: Props) {
     } finally {
       setIsLoading(false)
     }
+  }
+
+  // Auto-enviar pregunta inicial (ej: componente no encontrado)
+  useEffect(() => {
+    if (preguntaInicial) {
+      onPreguntaConsumida?.()
+      enviarMensaje(preguntaInicial)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [preguntaInicial])
+
+  const handleSend = async () => {
+    const trimmed = input.trim()
+    if (!trimmed || isLoading) return
+    setInput('')
+    await enviarMensaje(trimmed)
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {

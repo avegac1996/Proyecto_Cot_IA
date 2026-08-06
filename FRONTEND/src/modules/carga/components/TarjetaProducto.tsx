@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Store, Check, X, BadgeCheck, Lightbulb, AlertTriangle, ChevronDown, ChevronUp, ChevronRight, Loader2, Palette } from 'lucide-react'
+import { Store, Check, X, BadgeCheck, AlertTriangle, ChevronDown, ChevronUp, ChevronRight, Loader2, Palette, Sparkles } from 'lucide-react'
 import type { ResultadoComponente, OpcionProducto } from '@/shared/types'
 import { buscarAlternativas } from '../services/busquedaService'
 
@@ -7,7 +7,7 @@ interface Props {
   resultado: ResultadoComponente
   onToggleSeleccion: (termino: string, cantidad: number, opcion: OpcionProducto) => void
   seleccionadas: OpcionProducto[]
-  onBuscarSugerencia?: (sugerencia: string) => void
+  onPreguntarAgente?: (termino: string) => void
 }
 
 function money(value: number | null): string {
@@ -15,8 +15,8 @@ function money(value: number | null): string {
   return `$${Number(value).toFixed(2)}`
 }
 
-export default function TarjetaProducto({ resultado, onToggleSeleccion, seleccionadas, onBuscarSugerencia }: Props) {
-  const { termino, cantidad, opciones, encontrado_propia, sugerencia } = resultado
+export default function TarjetaProducto({ resultado, onToggleSeleccion, seleccionadas, onPreguntarAgente }: Props) {
+  const { termino, cantidad, opciones, encontrado_propia } = resultado
   const [agotadoExpandido, setAgotadoExpandido] = useState<string | null>(null)
   const [alternativasRemotas, setAlternativasRemotas] = useState<Record<string, OpcionProducto[]>>({})
   const [cargandoAlternativas, setCargandoAlternativas] = useState<string | null>(null)
@@ -124,25 +124,16 @@ export default function TarjetaProducto({ resultado, onToggleSeleccion, seleccio
             <X className="w-4 h-4" />
             No encontrado en ninguna tienda
           </div>
-          {sugerencia && (
-            <div
-              className="flex items-start gap-2 rounded-lg border p-3 text-xs"
-              style={{ borderColor: '#FEF3C7', backgroundColor: '#FFFBEB', color: '#92400E' }}
-            >
-              <Lightbulb className="w-4 h-4 flex-shrink-0 mt-0.5" />
-              <div className="flex-1">
-                <p className="font-medium mb-1">¿Buscabas "{sugerencia.sugerencia}"?</p>
-                <p className="opacity-80 mb-2">{sugerencia.razon}</p>
-                {onBuscarSugerencia && (
-                  <button
-                    onClick={() => onBuscarSugerencia(sugerencia.sugerencia)}
-                    className="px-2 py-1 rounded text-xs font-medium transition-colors"
-                    style={{ backgroundColor: '#92400E', color: '#fff' }}
-                  >
-                    Buscar "{sugerencia.sugerencia}"
-                  </button>
-                )}
-              </div>
+          {onPreguntarAgente && (
+            <div className="flex justify-center">
+              <button
+                onClick={() => onPreguntarAgente(termino)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors text-white"
+                style={{ backgroundColor: 'var(--color-primary)' }}
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                Preguntar al asistente IA
+              </button>
             </div>
           )}
         </div>

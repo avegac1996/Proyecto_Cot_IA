@@ -25,6 +25,7 @@ export default function CargaPage() {
   const [mostrarModalEnvio, setMostrarModalEnvio] = useState(false)
   const [datosCliente, setDatosCliente] = useState<{ nombre: string; correo: string; celular: string } | null>(null)
   const [mostrarAgente, setMostrarAgente] = useState(false)
+  const [preguntaAgente, setPreguntaAgente] = useState<string | null>(null)
   const [busquedaRealizada, setBusquedaRealizada] = useState(false)
   const [terminoBusqueda, setTerminoBusqueda] = useState('')
   const [resetKey, setResetKey] = useState(0)
@@ -151,9 +152,11 @@ export default function CargaPage() {
     setCarrito((prev) => prev.map((item, i) => (i === index ? { ...item, cantidad } : item)))
   }
 
-  const handleBuscarSugerencia = (sugerencia: string) => {
-    setMensaje(sugerencia)
-    handleBuscarWith(sugerencia)
+  const handlePreguntarAgente = (termino: string) => {
+    setMostrarAgente(true)
+    setPreguntaAgente(
+      `No encontré "${termino}" en las tiendas. ¿Con qué otro nombre o término podría buscarlo? Dame alternativas.`
+    )
   }
 
   const handleFinalizar = async (cliente?: { nombre: string; correo: string; celular: string }, envio?: OpcionEnvio | null) => {
@@ -444,7 +447,12 @@ export default function CargaPage() {
 
           {/* Asistente IA desplegable */}
           {mostrarAgente && busquedaRealizada && (
-            <AgenteChat resultados={resultados} terminoBusqueda={terminoBusqueda} />
+            <AgenteChat
+              resultados={resultados}
+              terminoBusqueda={terminoBusqueda}
+              preguntaInicial={preguntaAgente}
+              onPreguntaConsumida={() => setPreguntaAgente(null)}
+            />
           )}
 
           {/* Sin resultados */}
@@ -472,7 +480,7 @@ export default function CargaPage() {
                     seleccionadas={carrito
                       .filter((item) => item.termino.startsWith(`${resultado.termino} - `))
                       .map((item) => item.opcion_seleccionada)}
-                    onBuscarSugerencia={handleBuscarSugerencia}
+                    onPreguntarAgente={handlePreguntarAgente}
                   />
                 </div>
               ))}
@@ -498,7 +506,7 @@ export default function CargaPage() {
             <Info className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
             <span>
               AV Electronics aparece primero sin margen. Otras tiendas incluyen margen configurable.
-              Si un componente no se encuentra, te sugeriremos alternativas.
+              Si un componente no se encuentra, el asistente IA te ayuda a buscarlo con otro nombre.
             </span>
           </div>
         </div>

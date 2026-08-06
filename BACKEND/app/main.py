@@ -181,7 +181,17 @@ async def lifespan(app: FastAPI):
     await seed_default_users()
     # Seed de catálogos (tiendas, preguntas, productos)
     await seed_catalogos()
+    # Refresh de catálogo WooCommerce en background (cada hora)
+    from app.services.scraping import catalogo
+
+    tareas_refresh = []
+    async with async_session() as db:
+        result = await db.execute(select(Tienda).where(Tienda.activa.is_(True)))
+        for tienda in result.scalars().all():
+            tareas_refresh.append(catalogo.iniciar_refresh_background(tienda.url_base.rstrip("/")))
     yield
+    for tarea in tareas_refresh:
+        tarea.cancel()
     await engine.dispose()
 
 
