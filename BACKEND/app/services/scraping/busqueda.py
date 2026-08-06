@@ -157,53 +157,42 @@ def _filtrar_y_ordenar_por_relevancia(
     termino_base: str | None = None,
     tipo: str | None = None,
 ) -> list[dict]:
-    """Filtra y ordena opciones por relevancia en 3 niveles:
+    """Filtra y ordena opciones por relevancia.
 
-    Nivel 1: producto ES del tipo buscado Y coincide con descriptores (lo que pidió el cliente).
-    Nivel 2: producto ES del tipo buscado pero sin match de descriptores (alternativas del mismo tipo).
-    Nivel 3: producto NO es del tipo pero coincide con algún descriptor (ej: 'hembra' en adaptador USB).
+    Criterio: producto ES del tipo buscado Y tiene score > 0 (coincide con
+    al menos un descriptor o el término base).
+    Si no hay resultados, retorna [] (el caller generará sugerencia).
     """
     if not descriptores and not termino_base and not tipo:
         return opciones
 
-    nivel1, nivel2, nivel3 = [], [], []
+    relevantes = []
     for op in opciones:
         nombre = op.get("nombre_producto", "")
         nombre_norm = _normalizar_texto(nombre)
         score = _score_relevancia(nombre, descriptores) if descriptores else 0
         # Bonus por coincidencia del termino_base (ej: "esp 32" en "ESP32 ESP-WROOM-32")
-        if termino_base:
+        # Solo si el termino_base es específico (no solo la palabra del tipo genérico)
+        if termino_base and not (termino_base == tipo and " " not in termino_base):
             base_norm = _normalizar_texto(termino_base)
             base_sin_espacios = base_norm.replace(" ", "")
             nombre_sin_espacios = nombre_norm.replace(" ", "")
             if _palabra_en_texto(base_norm, nombre_norm) or base_sin_espacios in nombre_sin_espacios:
                 score += 20
+            elif " " in base_norm:
+                # Matching parcial: +5 por cada palabra del termino_base que aparece
+                for palabra in base_norm.split():
+                    if len(palabra) >= 4 and _palabra_en_texto(palabra, nombre_norm):
+                        score += 5
         es_tipo = _match_tipo(nombre_norm, tipo, termino_base)
         op["_relevancia"] = score
         if score > 0 and es_tipo:
-            nivel1.append(op)
-        elif es_tipo:
-            nivel2.append(op)
-        elif score > 0:
-            nivel3.append(op)
+            relevantes.append(op)
 
-    nivel1.sort(key=lambda o: (-o["_relevancia"], not o.get("disponible", False), o.get("precio_base", 9999)))
-    nivel2.sort(key=lambda o: (not o.get("disponible", False), o.get("precio_base", 9999)))
-    nivel3.sort(key=lambda o: (-o["_relevancia"], not o.get("disponible", False), o.get("precio_base", 9999)))
+    relevantes.sort(key=lambda o: (-o["_relevancia"], not o.get("disponible", False), o.get("precio_base", 9999)))
 
-    MAX_NIVEL1 = 5
-    MAX_NIVEL2 = 3
-    MAX_NIVEL3 = 2
-
-    nivel1 = nivel1[:MAX_NIVEL1]
-    if nivel1:
-        nivel2 = []
-        nivel3 = []
-    else:
-        nivel2 = nivel2[:MAX_NIVEL2]
-        nivel3 = nivel3[:MAX_NIVEL3]
-
-    resultado = nivel1 + nivel2 + nivel3
+    MAX_RESULTADOS = 5
+    resultado = relevantes[:MAX_RESULTADOS]
     for op in resultado:
         op.pop("_relevancia", None)
     return resultado

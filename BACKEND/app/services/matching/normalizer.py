@@ -14,7 +14,7 @@ TIPOS_PALABRAS: dict[str, list[str]] = {
     "sensor": ["sensor", "sensores"],
     "fuente": ["fuente", "eliminador", "cargador", "transformador", "adaptador"],
     "conector": ["conector", "conectores", "jack", "plug", "borne"],
-    "cable": ["cable", "cables", "jumper", "jumpers", "alambre"],
+    "cable": ["cable", "cables", "jumper", "jumpers", "alambre", "conector", "conectores"],
     "pulsador": ["pulsador", "pulsadores", "boton", "botones", "botón", "switch", "interruptor", "push"],
     "buzzer": ["buzzer", "zumbador", "bocina", "speaker", "altavoz"],
     "motor": ["motor dc", "motor", "servo", "servomotor", "paso a paso", "stepper"],
