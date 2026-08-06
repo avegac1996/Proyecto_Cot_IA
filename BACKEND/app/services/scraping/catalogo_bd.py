@@ -56,6 +56,7 @@ def _normalizar(texto: str) -> str:
     texto = unicodedata.normalize("NFD", texto)
     texto = "".join(c for c in texto if unicodedata.category(c) != "Mn")
     texto = texto.replace("ω", "ohm").replace("µ", "u").replace("μ", "u")
+    texto = texto.replace("²", "2").replace("³", "3")
     texto = re.sub(r"\bohms\b", "ohm", texto)
     return texto
 
@@ -204,6 +205,33 @@ async def refrescar_catalogo_bd(db: AsyncSession, url_base: str, nombre_tienda: 
     return len(productos)
 
 
+# Sinónimos: términos del usuario -> palabras que aparecen en el catálogo
+_SINONIMOS = {
+    "regleta": "header",
+    "tira": "header",
+    "pines": "header",
+    "jumper": "dupont",
+    "protoboard": "protoboard",
+    "placa": "baquelita",
+    "perforada": "baquelita",
+    "rele": "rele",
+    "relé": "rele",
+    "boya": "nivel",
+    "block": "terminal",
+    "bornera": "terminal",
+}
+
+
+def _expandir_token(token: str) -> list[str]:
+    """Genera variantes de un token: sinónimos y versión colapsada."""
+    variantes = [token]
+    # Sinónimo
+    sinonimo = _SINONIMOS.get(token)
+    if sinonimo and sinonimo != token:
+        variantes.append(sinonimo)
+    return variantes
+
+
 async def buscar_en_bd(
     db: AsyncSession,
     termino: str,
@@ -215,62 +243,79 @@ async def buscar_en_bd(
     Estrategia:
     1. Normalizar el término de búsqueda
     2. Extraer tokens significativos (sin stop words, sin números sueltos)
-    3. Buscar productos donde el nombre normalizado contenga TODOS los tokens
-       (AND estricto). Si no hay resultados, aflojar a OR.
-    4. Rankear por cantidad de tokens coincidentes + disponibilidad + precio.
+    3. Generar variantes por token (sinónimos: regleta→header, jumper→dupont)
+    4. Buscar AND: cada token (o su sinónimo) debe aparecer en el nombre
+    5. Si no hay resultados, aflojar a OR
+    6. Rankear por coincidencias + disponibilidad + precio
     """
     termino_norm = _normalizar(termino)
 
     # Extraer tokens significativos
-    tokens = []
+    tokens_brutos = []
     for token in termino_norm.split():
         if token in _STOP_WORDS or len(token) < 2:
             continue
         if token.replace(".", "").replace(",", "").isdigit():
             continue
-        tokens.append(token)
+        tokens_brutos.append(token)
 
-    if not tokens:
+    if not tokens_brutos:
         return []
+
+    # Generar tokens colapsados: pares adyacentes alfanuméricos (esp + 32 -> esp32)
+    # Pero solo para pares donde uno es letras y el otro es números
+    tokens = []
+    i = 0
+    while i < len(tokens_brutos):
+        token = tokens_brutos[i]
+        # Intentar colapsar con el siguiente si es par letra+número o número+letra
+        if i + 1 < len(tokens_brutos):
+            sig = tokens_brutos[i + 1]
+            es_letra_num = token.isalpha() and sig.isdigit()
+            if es_letra_num:
+                tokens.append(token + sig)
+                i += 2
+                continue
+        tokens.append(token)
+        i += 1
+
+    # Generar variantes por token
+    tokens_expandidos = [_expandir_token(t) for t in tokens]
 
     # Construir query base
     base_query = select(CatalogoProducto)
     if url_base:
         base_query = base_query.where(CatalogoProducto.url_base == url_base)
 
-    # Intento 1: AND estricto (todos los tokens deben aparecer)
+    from sqlalchemy import or_
+
+    # Intento 1: AND estricto — cada token debe aparecer (con variantes OR)
     condiciones_and = []
-    for token in tokens:
-        condiciones_and.append(CatalogoProducto.nombre_normalizado.ilike(f"%{token}%"))
+    for variantes in tokens_expandidos:
+        condiciones_token = [
+            CatalogoProducto.nombre_normalizado.ilike(f"%{v}%") for v in variantes
+        ]
+        condiciones_and.append(or_(*condiciones_token))
 
     query_and = base_query.where(*condiciones_and)
     result_and = await db.execute(query_and)
     productos = result_and.scalars().all()
 
-    # Intento 2: Si AND no da resultados, usar OR (al menos un token)
+    # Intento 2: OR — al menos un token (con variantes)
     if not productos:
         condiciones_or = []
-        for token in tokens:
-            condiciones_or.append(CatalogoProducto.nombre_normalizado.ilike(f"%{token}%"))
-        query_or = base_query.where(
-            CatalogoProducto.nombre_normalizado.ilike(f"%{tokens[0]}%")
-        )
-        for cond in condiciones_or[1:]:
-            query_or = query_or.where(
-                # Rebuild with OR using | operator
-                text("1=1")
-            )
-        # Simpler OR approach
-        from sqlalchemy import or_
+        for variantes in tokens_expandidos:
+            for v in variantes:
+                condiciones_or.append(CatalogoProducto.nombre_normalizado.ilike(f"%{v}%"))
         query_or = base_query.where(or_(*condiciones_or))
         result_or = await db.execute(query_or)
         productos = result_or.scalars().all()
 
-    # Rankear en Python: contar tokens coincidentes
+    # Rankear en Python: contar tokens coincidentes (con variantes)
     def _contar_coincidencias(nombre_norm: str) -> int:
         count = 0
-        for token in tokens:
-            if token in nombre_norm:
+        for variantes in tokens_expandidos:
+            if any(v in nombre_norm for v in variantes):
                 count += 1
         return count
 
