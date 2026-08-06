@@ -27,6 +27,7 @@ export default function CargaPage() {
   const [mostrarAgente, setMostrarAgente] = useState(false)
   const [preguntaAgente, setPreguntaAgente] = useState<string | null>(null)
   const [busquedaRealizada, setBusquedaRealizada] = useState(false)
+  const [subBuscandoIdx, setSubBuscandoIdx] = useState<number | null>(null)
   const [terminoBusqueda, setTerminoBusqueda] = useState('')
   const [resetKey, setResetKey] = useState(0)
   const resultadosRef = useRef<HTMLDivElement>(null)
@@ -157,6 +158,28 @@ export default function CargaPage() {
     setPreguntaAgente(
       `No encontré "${termino}" en las tiendas. ¿Con qué otro nombre o término podría buscarlo? Dame alternativas.`
     )
+  }
+
+  const handleSubBuscar = async (idx: number, nuevoTermino: string) => {
+    const trimmed = nuevoTermino.trim()
+    if (!trimmed) return
+    setSubBuscandoIdx(idx)
+    setError(null)
+    try {
+      const data = await buscarComponentes(trimmed)
+      if (data.resultados.length > 0) {
+        const nuevoResultado = data.resultados[0]
+        nuevoResultado.cantidad = resultados[idx].cantidad
+        setResultados((prev) => prev.map((r, i) => (i === idx ? nuevoResultado : r)))
+      } else {
+        setError(`No se encontró "${trimmed}" tampoco. Intenta con otro término.`)
+      }
+    } catch (err) {
+      const e = err as { response?: { data?: { detail?: { message?: string } } }; message?: string }
+      setError(e.response?.data?.detail?.message || e.message || 'Error en sub-búsqueda')
+    } finally {
+      setSubBuscandoIdx(null)
+    }
   }
 
   const handleFinalizar = async (cliente?: { nombre: string; correo: string; celular: string }, envio?: OpcionEnvio | null) => {
@@ -481,6 +504,8 @@ export default function CargaPage() {
                       .filter((item) => item.termino.startsWith(`${resultado.termino} - `))
                       .map((item) => item.opcion_seleccionada)}
                     onPreguntarAgente={handlePreguntarAgente}
+                    onSubBuscar={(nuevoTermino) => handleSubBuscar(idx, nuevoTermino)}
+                    subBuscando={subBuscandoIdx === idx}
                   />
                 </div>
               ))}

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Store, Check, X, BadgeCheck, AlertTriangle, ChevronDown, ChevronUp, ChevronRight, Loader2, Palette, Sparkles, SearchX } from 'lucide-react'
+import { Store, Check, X, BadgeCheck, AlertTriangle, ChevronDown, ChevronUp, ChevronRight, Loader2, Palette, Sparkles, SearchX, Search } from 'lucide-react'
 import type { ResultadoComponente, OpcionProducto } from '@/shared/types'
 import { buscarAlternativas } from '../services/busquedaService'
 
@@ -8,6 +8,8 @@ interface Props {
   onToggleSeleccion: (termino: string, cantidad: number, opcion: OpcionProducto) => void
   seleccionadas: OpcionProducto[]
   onPreguntarAgente?: (termino: string) => void
+  onSubBuscar?: (nuevoTermino: string) => void
+  subBuscando?: boolean
 }
 
 function money(value: number | null): string {
@@ -15,13 +17,15 @@ function money(value: number | null): string {
   return `$${Number(value).toFixed(2)}`
 }
 
-export default function TarjetaProducto({ resultado, onToggleSeleccion, seleccionadas, onPreguntarAgente }: Props) {
+export default function TarjetaProducto({ resultado, onToggleSeleccion, seleccionadas, onPreguntarAgente, onSubBuscar, subBuscando }: Props) {
   const { termino, cantidad, opciones, encontrado_propia, no_encontrado } = resultado
   const [agotadoExpandido, setAgotadoExpandido] = useState<string | null>(null)
   const [alternativasRemotas, setAlternativasRemotas] = useState<Record<string, OpcionProducto[]>>({})
   const [cargandoAlternativas, setCargandoAlternativas] = useState<string | null>(null)
   const [varianteSeleccionada, setVarianteSeleccionada] = useState<string | null>(null)
   const [colapsado, setColapsado] = useState(false)
+  const [mostrarSubBuscar, setMostrarSubBuscar] = useState(false)
+  const [subTermino, setSubTermino] = useState('')
 
   // Auto-colapsar cuando hay productos seleccionados
   useEffect(() => {
@@ -40,7 +44,18 @@ export default function TarjetaProducto({ resultado, onToggleSeleccion, seleccio
 
   const handleIA = (e: React.MouseEvent) => {
     e.stopPropagation()
-    onPreguntarAgente?.(termino)
+    if (onSubBuscar) {
+      setMostrarSubBuscar((v) => !v)
+    } else {
+      onPreguntarAgente?.(termino)
+    }
+  }
+
+  const handleSubBuscarSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (subTermino.trim() && onSubBuscar) {
+      onSubBuscar(subTermino.trim())
+    }
   }
 
   const BotonIA = ({ size = 'sm' }: { size?: 'sm' | 'xs' }) => (
@@ -147,7 +162,7 @@ export default function TarjetaProducto({ resultado, onToggleSeleccion, seleccio
           <span className="text-xs sm:hidden" style={{ color: 'var(--color-text-muted)' }}>
             {sinResultados ? 'N/E' : opciones.length}
           </span>
-          {esNoEncontrado && onPreguntarAgente && (
+          {esNoEncontrado && (onSubBuscar || onPreguntarAgente) && (
             <BotonIA size="xs" />
           )}
         </div>
@@ -155,21 +170,63 @@ export default function TarjetaProducto({ resultado, onToggleSeleccion, seleccio
 
       {/* Caso 1: Sin resultados ni similares */}
       {sinResultados && (
-        <div className="px-3 sm:px-4 py-4 space-y-2">
+        <div className="px-3 sm:px-4 py-4 space-y-3">
           <div className="flex items-center justify-center gap-2 text-sm text-center" style={{ color: 'var(--color-text-muted)' }}>
             <X className="w-4 h-4 flex-shrink-0" />
             <span>No encontrado en ninguna tienda</span>
           </div>
-          {onPreguntarAgente && (
-            <div className="flex justify-center">
+          {onSubBuscar && mostrarSubBuscar && (
+            <form onSubmit={handleSubBuscarSubmit} className="space-y-2">
+              <p className="text-xs text-center" style={{ color: 'var(--color-text-muted)' }}>
+                Escribe otro nombre para buscar solo este componente:
+              </p>
+              <div className="flex gap-1.5">
+                <input
+                  type="text"
+                  value={subTermino}
+                  onChange={(e) => setSubTermino(e.target.value)}
+                  placeholder="Ej: MOV 14mm"
+                  autoFocus
+                  disabled={subBuscando}
+                  className="flex-1 px-2.5 py-1.5 rounded-lg text-xs outline-none min-w-0"
+                  style={{
+                    border: '1px solid var(--color-border)',
+                    backgroundColor: 'var(--color-bg)',
+                    color: 'var(--color-text)',
+                  }}
+                />
+                <button
+                  type="submit"
+                  disabled={!subTermino.trim() || subBuscando}
+                  className="px-2.5 py-1.5 rounded-lg text-xs font-medium text-white transition-colors disabled:opacity-50 flex items-center gap-1 flex-shrink-0"
+                  style={{ backgroundColor: 'var(--color-primary)' }}
+                >
+                  {subBuscando ? <Loader2 className="w-3 h-3 animate-spin" /> : <Search className="w-3 h-3" />}
+                  <span className="hidden sm:inline">Buscar</span>
+                </button>
+              </div>
+            </form>
+          )}
+          {onSubBuscar && !mostrarSubBuscar && (
+            <div className="flex justify-center gap-2">
               <button
                 onClick={handleIA}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors text-white"
                 style={{ backgroundColor: 'var(--color-primary)' }}
               >
                 <Sparkles className="w-3.5 h-3.5" />
-                Preguntar al asistente IA
+                Buscar con otro nombre
               </button>
+              {onPreguntarAgente && (
+                <button
+                  onClick={() => onPreguntarAgente(termino)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
+                  style={{ border: '1px solid var(--color-border)', color: 'var(--color-text-muted)' }}
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  Preguntar IA
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -231,16 +288,62 @@ export default function TarjetaProducto({ resultado, onToggleSeleccion, seleccio
               </button>
             )
           })}
-          {onPreguntarAgente && (
-            <div className="px-3 sm:px-4 py-2.5 flex justify-center" style={{ backgroundColor: 'var(--color-bg)' }}>
-              <button
-                onClick={handleIA}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors text-white"
-                style={{ backgroundColor: 'var(--color-primary)' }}
-              >
-                <Sparkles className="w-3.5 h-3.5" />
-                ¿No te sirve? Preguntar al asistente IA
-              </button>
+          {onSubBuscar && mostrarSubBuscar && (
+            <div className="px-3 sm:px-4 py-3" style={{ backgroundColor: 'var(--color-bg)' }}>
+              <form onSubmit={handleSubBuscarSubmit} className="space-y-2">
+                <p className="text-xs text-center" style={{ color: 'var(--color-text-muted)' }}>
+                  Escribe otro nombre para buscar solo este componente:
+                </p>
+                <div className="flex gap-1.5">
+                  <input
+                    type="text"
+                    value={subTermino}
+                    onChange={(e) => setSubTermino(e.target.value)}
+                    placeholder="Ej: MOV 14mm"
+                    autoFocus
+                    disabled={subBuscando}
+                    className="flex-1 px-2.5 py-1.5 rounded-lg text-xs outline-none min-w-0"
+                    style={{
+                      border: '1px solid var(--color-border)',
+                      backgroundColor: 'var(--color-surface)',
+                      color: 'var(--color-text)',
+                    }}
+                  />
+                  <button
+                    type="submit"
+                    disabled={!subTermino.trim() || subBuscando}
+                    className="px-2.5 py-1.5 rounded-lg text-xs font-medium text-white transition-colors disabled:opacity-50 flex items-center gap-1 flex-shrink-0"
+                    style={{ backgroundColor: 'var(--color-primary)' }}
+                  >
+                    {subBuscando ? <Loader2 className="w-3 h-3 animate-spin" /> : <Search className="w-3 h-3" />}
+                    <span className="hidden sm:inline">Buscar</span>
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
+          {(onSubBuscar || onPreguntarAgente) && !mostrarSubBuscar && (
+            <div className="px-3 sm:px-4 py-2.5 flex justify-center gap-2 flex-wrap" style={{ backgroundColor: 'var(--color-bg)' }}>
+              {onSubBuscar && (
+                <button
+                  onClick={handleIA}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors text-white"
+                  style={{ backgroundColor: 'var(--color-primary)' }}
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  Buscar con otro nombre
+                </button>
+              )}
+              {onPreguntarAgente && (
+                <button
+                  onClick={() => onPreguntarAgente(termino)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
+                  style={{ border: '1px solid var(--color-border)', color: 'var(--color-text-muted)' }}
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  Preguntar IA
+                </button>
+              )}
             </div>
           )}
         </div>
