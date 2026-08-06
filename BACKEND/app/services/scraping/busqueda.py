@@ -171,6 +171,13 @@ def _filtrar_y_ordenar_por_relevancia(
         nombre = op.get("nombre_producto", "")
         nombre_norm = _normalizar_texto(nombre)
         score = _score_relevancia(nombre, descriptores) if descriptores else 0
+        # Bonus por coincidencia del termino_base (ej: "esp 32" en "ESP32 ESP-WROOM-32")
+        if termino_base:
+            base_norm = _normalizar_texto(termino_base)
+            base_sin_espacios = base_norm.replace(" ", "")
+            nombre_sin_espacios = nombre_norm.replace(" ", "")
+            if _palabra_en_texto(base_norm, nombre_norm) or base_sin_espacios in nombre_sin_espacios:
+                score += 20
         es_tipo = _match_tipo(nombre_norm, tipo, termino_base)
         op["_relevancia"] = score
         if score > 0 and es_tipo:
@@ -184,13 +191,12 @@ def _filtrar_y_ordenar_por_relevancia(
     nivel2.sort(key=lambda o: (not o.get("disponible", False), o.get("precio_base", 9999)))
     nivel3.sort(key=lambda o: (-o["_relevancia"], not o.get("disponible", False), o.get("precio_base", 9999)))
 
-    MAX_NIVEL1 = 10
-    MAX_NIVEL2 = 5
-    MAX_NIVEL3 = 3
-    MIN_NIVEL1_PARA_OMITIR = 5
+    MAX_NIVEL1 = 5
+    MAX_NIVEL2 = 3
+    MAX_NIVEL3 = 2
 
     nivel1 = nivel1[:MAX_NIVEL1]
-    if len(nivel1) >= MIN_NIVEL1_PARA_OMITIR:
+    if nivel1:
         nivel2 = []
         nivel3 = []
     else:

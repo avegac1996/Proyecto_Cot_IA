@@ -1,6 +1,6 @@
-"""Test end-to-end via API HTTP (proceso real del servidor, con cache)."""
+"""Debug timing per component."""
+import asyncio
 import time
-
 import httpx
 
 TEXTO = """6 Esp 32 Modulo Wifi- Bluetooth 30 Pines
@@ -35,7 +35,6 @@ def main():
         json={"email": "admin@cotia.com", "password": "Admin123!"},
         timeout=30,
     )
-    print("login:", r.status_code)
     token = r.json().get("access_token", "")
 
     t0 = time.time()
@@ -47,13 +46,13 @@ def main():
     )
     dt = time.time() - t0
     print(f"buscar: {r.status_code} en {dt:.1f}s")
-    if r.status_code != 200:
-        print(r.text[:500])
-        return
+    total_ops = 0
     for res in r.json().get("resultados", []):
         ops = res.get("opciones", [])
+        total_ops += len(ops)
         primera = ops[0]["nombre_producto"] if ops else "NO ENCONTRADO"
         print(f"  {res['termino'][:40]:<40} x{res['cantidad']:<3} ops={len(ops)} -> {primera}")
+    print(f"\nTotal: {len(r.json().get('resultados', []))} componentes, {total_ops} opciones")
 
 
 main()

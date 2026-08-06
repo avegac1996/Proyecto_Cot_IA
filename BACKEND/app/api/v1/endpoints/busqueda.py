@@ -74,15 +74,24 @@ async def buscar_componentes(
     """
     componentes = extraer_componentes(body.texto)
 
-    # Sin deduplicación global: cada término busca independientemente.
-    # El filtrado por relevancia se encarga de que cada producto aparezca
-    # bajo el término más adecuado (ej: "LED Verde" bajo "led verde", no "led rojo").
     from app.services.scraping.sugerencias import sugerir_termino
-
     from app.core.database import async_session
 
+    # Deduplicación: fusionar componentes con mismo termino_base + descriptores
+    vistos: dict[str, dict] = {}
+    for comp in componentes:
+        key = comp.get("termino_base", comp["termino"])
+        desc_key = tuple(sorted(comp.get("descriptores", [])))
+        dedup_key = f"{key}::{desc_key}"
+        if dedup_key in vistos:
+            vistos[dedup_key]["cantidad"] += comp["cantidad"]
+        else:
+            vistos[dedup_key] = dict(comp)
+
+    componentes_dedup = list(vistos.values())
+
     async def _buscar_comp(comp: dict) -> dict:
-        async with async_session() as session:
+        async with _sem, async_session() as session:
             resultado = await buscar_por_termino_priorizado(
                 session, comp["termino"], comp["cantidad"],
                 termino_base=comp.get("termino_base"),
@@ -93,7 +102,8 @@ async def buscar_componentes(
                 resultado["sugerencia"] = sugerir_termino(comp["termino"])
             return resultado
 
-    resultados = await asyncio.gather(*[_buscar_comp(c) for c in componentes])
+    _sem = asyncio.Semaphore(5)
+    resultados = await asyncio.gather(*[_buscar_comp(c) for c in componentes_dedup])
 
     return BusquedaResponse(resultados=resultados)
 

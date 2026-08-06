@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+import logging
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -16,6 +17,8 @@ from app.models import (
     Tienda,
     Usuario,
 )
+
+logger = logging.getLogger(__name__)
 
 TIENDAS_SEED = [
     {
@@ -181,9 +184,21 @@ async def lifespan(app: FastAPI):
     await seed_default_users()
     # Seed de catálogos (tiendas, preguntas, productos)
     await seed_catalogos()
-    # Refresh de catálogo WooCommerce en background (cada hora)
+    # Cargar catálogo WooCommerce sincrónicamente al inicio
     from app.services.scraping import catalogo
 
+    async with async_session() as db:
+        result = await db.execute(select(Tienda).where(Tienda.activa.is_(True)))
+        for tienda in result.scalars().all():
+            url = tienda.url_base.rstrip("/")
+            try:
+                if await catalogo.soporta_api_wc(url):
+                    await catalogo.refrescar_catalogo(url)
+                    logger.info("Catálogo inicial cargado para %s", url)
+            except Exception as exc:
+                logger.warning("Carga inicial de catálogo falló para %s: %s", url, exc)
+
+    # Refresh de catálogo en background (cada hora)
     tareas_refresh = []
     async with async_session() as db:
         result = await db.execute(select(Tienda).where(Tienda.activa.is_(True)))

@@ -195,6 +195,9 @@ async def refrescar_catalogo(url_base: str) -> None:
     if productos:
         _cache_catalogo[url_base] = {"productos": productos, "timestamp": time.time()}
         logger.info("Catálogo cacheado: %s (%d productos)", url_base, len(productos))
+        # Invalidar caché de términos para que búsquedas usen el catálogo actualizado
+        from app.services.scraping.engine import limpiar_cache_termino
+        limpiar_cache_termino()
 
 
 async def obtener_catalogo(url_base: str, forzar: bool = False) -> list[dict]:
