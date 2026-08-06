@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 import asyncio
+import re
 
 from app.api.deps import get_current_user
 from app.core.config import settings
@@ -109,6 +110,79 @@ async def buscar_componentes(
     resultados = await asyncio.gather(*[_buscar_comp(c) for c in componentes_dedup])
 
     return BusquedaResponse(resultados=resultados)
+
+
+class BusquedaTerminoRequest(BaseModel):
+    termino: str
+    cantidad: int = 1
+
+
+@router.post("/termino", response_model=ResultadoComponente)
+async def buscar_termino_directo(
+    body: BusquedaTerminoRequest,
+    db: AsyncSession = Depends(get_db),
+    user: Usuario = Depends(get_current_user),
+):
+    """Busca un término directamente sin extracción de componentes.
+
+    Usa el mismo pipeline de buscar_por_termino_priorizado con:
+    - Normalización (case-insensitive, acentos)
+    - Sinónimos (varistor→diodo, bornero→bornera, etc.)
+    - Fallback a web scraping
+    - Productos similares si no encuentra
+    """
+    from app.services.matching.normalizer import TIPOS_PALABRAS
+    from app.services.scraping.busqueda import _normalizar_texto
+
+    termino = body.termino.strip()
+    if not termino:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"code": "EMPTY_TERM", "message": "El término no puede estar vacío"},
+        )
+
+    termino_norm = _normalizar_texto(termino)
+
+    # Detectar tipo por sinónimos (igual que extraer_componentes pero directo)
+    # Usar word boundary matching para evitar que "borne" matchee antes que "bornero"
+    tipo = None
+    sinonimo_detectado = None
+    mejores = []  # (len_sin, tipo, sin)
+    for tipo_nombre, sinonimos in TIPOS_PALABRAS.items():
+        for sin in sinonimos:
+            sin_norm = _normalizar_texto(sin)
+            # Matching por palabra completa (word boundary)
+            if " " in sin_norm:
+                if sin_norm in termino_norm:
+                    mejores.append((len(sin_norm), tipo_nombre, sin))
+            else:
+                if re.search(rf"\b{re.escape(sin_norm)}\b", termino_norm):
+                    mejores.append((len(sin_norm), tipo_nombre, sin))
+    # Priorizar el sinónimo más largo (más específico)
+    if mejores:
+        mejores.sort(key=lambda x: -x[0])
+        tipo = mejores[0][1]
+        sinonimo_detectado = mejores[0][2]
+
+    # termino_base: usar el término completo si tiene más palabras que el sinónimo
+    # así el filtro de relevancia da bonus por palabras extra (ej: "1n5408" en "diodo 1n5408")
+    if sinonimo_detectado and len(termino.split()) > len(sinonimo_detectado.split()):
+        termino_base = termino
+    else:
+        termino_base = sinonimo_detectado or termino
+
+    resultado = await buscar_por_termino_priorizado(
+        db, termino, body.cantidad,
+        termino_base=termino_base,
+        descriptores=[],
+        tipo=tipo,
+    )
+
+    if not resultado.get("opciones") and not resultado.get("sugerencia"):
+        from app.services.scraping.sugerencias import sugerir_termino
+        resultado["sugerencia"] = sugerir_termino(termino)
+
+    return ResultadoComponente(**resultado)
 
 
 @router.post("/alternativas", response_model=AlternativaResponse)

@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { Search, Loader2, AlertCircle, Send, Mic, Image as ImageIcon, FileText, Type, Info, ArrowLeft, Sparkles, RotateCw } from 'lucide-react'
-import { buscarComponentes, crearCotizacionDesdeCarrito, getCotizacionById } from './services/busquedaService'
+import { buscarComponentes, buscarTerminoDirecto, crearCotizacionDesdeCarrito, getCotizacionById } from './services/busquedaService'
 import TarjetaProducto from './components/TarjetaProducto'
 import CarritoPreview from './components/CarritoPreview'
 import VoiceInput from './components/VoiceInput'
@@ -166,14 +166,8 @@ export default function CargaPage() {
     setSubBuscandoIdx(idx)
     setError(null)
     try {
-      const data = await buscarComponentes(trimmed)
-      if (data.resultados.length > 0) {
-        const nuevoResultado = data.resultados[0]
-        nuevoResultado.cantidad = resultados[idx].cantidad
-        setResultados((prev) => prev.map((r, i) => (i === idx ? nuevoResultado : r)))
-      } else {
-        setError(`No se encontró "${trimmed}" tampoco. Intenta con otro término.`)
-      }
+      const nuevoResultado = await buscarTerminoDirecto(trimmed, resultados[idx].cantidad)
+      setResultados((prev) => prev.map((r, i) => (i === idx ? nuevoResultado : r)))
     } catch (err) {
       const e = err as { response?: { data?: { detail?: { message?: string } } }; message?: string }
       setError(e.response?.data?.detail?.message || e.message || 'Error en sub-búsqueda')

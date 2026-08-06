@@ -6,6 +6,11 @@ export async function buscarComponentes(texto: string): Promise<BusquedaResponse
   return data
 }
 
+export async function buscarTerminoDirecto(termino: string, cantidad: number = 1): Promise<ResultadoComponente> {
+  const { data } = await api.post<ResultadoComponente>('/buscar/termino', { termino, cantidad })
+  return data
+}
+
 export interface MensajeChat {
   role: 'user' | 'assistant'
   content: string
